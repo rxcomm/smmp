@@ -5,11 +5,14 @@ import socket
 import threading
 import sys
 import curses
+import gnupg
 from curses.textpad import Textbox
 from random import randint
 from contextlib import contextmanager
 from time import sleep
 from smmp import Participant, Organizer, BummerUndecryptable
+from StringIO import StringIO
+from getpass import getpass
 
 """
 Standalone chat script using AES256 encryption with Axolotl ratchet for
@@ -69,6 +72,42 @@ def organizer(group_name):
 def participant(group_name):
     a = Participant(group_name)
     yield a
+
+@contextmanager
+def encFile(file_name, passphrase):
+    a = StringIO()
+    yield a
+    KEYRING = './keyring.gpg'
+    SECRET_KEYRING = './secring.gpg'
+    GPGBINARY = 'gpg'
+    gpg = gnupg.GPG(gnupghome='.', gpgbinary=GPGBINARY, keyring=KEYRING,
+                    secret_keyring=SECRET_KEYRING, options=['--throw-keyids',
+                    '--personal-digest-preferences=sha256','--s2k-digest-algo=sha256'])
+    gpg.encoding = 'utf-8'
+    ciphertext = gpg.encrypt(a.getvalue(), recipients=None, symmetric='AES256',
+                             armor=False, always_trust=True, passphrase=passphrase)
+    a.close()
+    with open(file_name, 'wb') as f:
+        f.write(ciphertext.data)
+
+@contextmanager
+def decFile(file_name, passphrase):
+    KEYRING = './keyring.gpg'
+    SECRET_KEYRING = './secring.gpg'
+    GPGBINARY = 'gpg'
+    gpg = gnupg.GPG(gnupghome='.', gpgbinary=GPGBINARY, keyring=KEYRING,
+                    secret_keyring=SECRET_KEYRING, options=['--throw-keyids',
+                    '--personal-digest-preferences=sha256','--s2k-digest-algo=sha256'])
+    gpg.encoding = 'utf-8'
+    with open(file_name, 'rb') as f:
+        ciphertext = f.read()
+    plaintext = gpg.decrypt(ciphertext, passphrase=passphrase, always_trust=True)
+    a = StringIO(plaintext)
+    a.seek(0)
+    yield a
+    a.close()
+
+
 
 class _Textbox(Textbox):
     """
@@ -212,7 +251,15 @@ def chatThread(sock, mypart, myname):
             saveState(mypart)
 
 def saveState(mypart):
-    with open('chatdata_'+str(mypart.state['my_index'])+'.dat', 'w') as f:
+    file_name = raw_input('What file do you want to save the data in? ')
+    passphrase=''
+    passphrase1='1'
+    while passphrase != passphrase1:
+        passphrase = getpass('What is the passphrase for the file: ')
+        passphrase1 = getpass('Repeat: ')
+        if passphrase != passphrase1:
+            print 'Passphrases did not match'
+    with encFile(file_name, passphrase) as f:
         f.write(binascii.b2a_base64(mypart.state['HK']))
         f.write(binascii.b2a_base64(mypart.state['MK']))
         f.write(binascii.b2a_base64(mypart.state['NHK']))
@@ -226,7 +273,8 @@ def saveState(mypart):
 
 def loadState(mypart):
     file_name = raw_input('What file do you want to load? ')
-    with open(file_name, 'r') as f:
+    passphrase = getpass('What is the passphrase for the file? ')
+    with decFile(file_name, passphrase) as f:
         data = f.read()
         data_list = data.split()
         mypart.state['HK'] = binascii.a2b_base64(data_list[0])
@@ -329,6 +377,5 @@ if __name__ == '__main__':
 
 
             myname = raw_input('What is your name? ')
-            saveState(mypart)
             chatThread(s, mypart, myname)
 
