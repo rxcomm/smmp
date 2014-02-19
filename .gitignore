@@ -1,3 +1,5 @@
 *.dat
 *.pyc
+*.gpg
+*.log
 random_seed

@@ -312,70 +312,73 @@ if __name__ == '__main__':
 
     R = {}
     HOST = raw_input('Enter the server: ')
-    print 'Connecting to ' + HOST + '...'
-    with socketcontext(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((HOST, PORT))
 
-        ans = raw_input('Do you want to load a state? y/N ')
-        if ans == 'y':
-            with participant('dummy') as mypart:
-                loadState(mypart)
-                myname = raw_input('What is your name? ')
-                chatThread(s, mypart, myname)
-                exit()
-
-        group_name = raw_input('What is the group name? ')
-        num_users = int(raw_input('Input total number of participants (including you): '))
-        with participant(group_name) as mypart:
-            ans = raw_input('Are you the group organizer? y/N ')
-            if ans == 'y':
-                with organizer(group_name) as org:
-                    useridkeylist = {}
-                    userhskeylist = {}
-                    userrtkeylist = {}
-                    for i in range(1, num_users):
-                        useridkeylist[i] = binascii.a2b_base64(raw_input('User '+str(i)+' ID key: '))
-                        userhskeylist[i] = binascii.a2b_base64(raw_input('User '+str(i)+' handshake key: '))
-                        userrtkeylist[i] = binascii.a2b_base64(raw_input('User '+str(i)+' ratchet key: '))
-                    useridkeylist[0] = mypart.identityPKey
-                    userhskeylist[0] = mypart.handshakePKey
-                    userrtkeylist[0] = mypart.ratchetPKey
-                    org.initState(group_name, useridkeylist, userhskeylist, userrtkeylist, 0)
-                    print 'The following items should be passed securely to all participants'
-                    print 'The group identity key: '+binascii.b2a_base64(org.state['pU'])
-                    print 'The group handshake key: '+binascii.b2a_base64(org.state['pW'])
-                    print 'The group ratchet key: '+binascii.b2a_base64(org.state['v'])
-                    print 'The participant ratchet keys are:'
-                    for key, item in org.state['R'].iteritems():
-                        print 'Participant '+str(key)+' ratchet key: '+binascii.b2a_base64(item)
-                    print 'The G value for each user should be passed securely to that user'
-                    for key, item in org.G.iteritems():
-                        if key != 0:
-                            print 'G for user '+str(key)+' is: '+ binascii.b2a_base64(item)
-                    pU = org.state['pU']
-                    pW = org.state['pW']
-                    G0 = org.G[0]
-                    v = org.state['v']
-                mypart.initState(group_name, pU, pW, userrtkeylist, num_users, G0, v, my_index= 0)
-                ans = raw_input('When everyone has the group data, hit <RETURN>')
-            else:
-                print 'Your identity key is '+binascii.b2a_base64(mypart.identityPKey)
-                print 'Your handshake key is '+binascii.b2a_base64(mypart.handshakePKey)
-                print 'Your ratchet key is '+binascii.b2a_base64(mypart.ratchetPKey)
-                print 'The following required information will be provided by the group organizer'
-                my_index = int(raw_input('Input your user number: '))
-                group_identityPKey = binascii.a2b_base64(raw_input('Input the group identity key: '))
-                group_handshakePKey = binascii.a2b_base64(raw_input('Input the group handshake key: '))
-                group_ratchetPKey = binascii.a2b_base64(raw_input('Input the group ratchet key: '))
-                G = binascii.a2b_base64(raw_input('Input G: '))
-                R[my_index] = mypart.ratchetPKey
-                for i in range(num_users):
-                    if i != my_index:
-                        R[i] = binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s ratchet key: '))
-                mypart.initState(group_name, group_identityPKey, group_handshakePKey, R, num_users, G, group_ratchetPKey, my_index=my_index)
-
-
-
+    ans = raw_input('Do you want to load a state? y/N ')
+    if ans == 'y':
+        with participant('dummy') as mypart:
+            loadState(mypart)
             myname = raw_input('What is your name? ')
+            print 'Connecting to ' + HOST + '...'
+            with socketcontext(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((HOST, PORT))
+                chatThread(s, mypart, myname)
+            exit()
+
+    group_name = raw_input('What is the group name? ')
+    num_users = int(raw_input('Input total number of participants (including you): '))
+    with participant(group_name) as mypart:
+        ans = raw_input('Are you the group organizer? y/N ')
+        if ans == 'y':
+            with organizer(group_name) as org:
+                useridkeylist = {}
+                userhskeylist = {}
+                userrtkeylist = {}
+                for i in range(1, num_users):
+                    useridkeylist[i] = binascii.a2b_base64(raw_input('User '+str(i)+' ID key: '))
+                    userhskeylist[i] = binascii.a2b_base64(raw_input('User '+str(i)+' handshake key: '))
+                    userrtkeylist[i] = binascii.a2b_base64(raw_input('User '+str(i)+' ratchet key: '))
+                useridkeylist[0] = mypart.identityPKey
+                userhskeylist[0] = mypart.handshakePKey
+                userrtkeylist[0] = mypart.ratchetPKey
+                org.initState(group_name, useridkeylist, userhskeylist, userrtkeylist, 0)
+                print 'The following items should be passed securely to all participants'
+                print 'The group identity key: '+binascii.b2a_base64(org.state['pU'])
+                print 'The group handshake key: '+binascii.b2a_base64(org.state['pW'])
+                print 'The group ratchet key: '+binascii.b2a_base64(org.state['v'])
+                print 'The participant ratchet keys are:'
+                for key, item in org.state['R'].iteritems():
+                    print 'Participant '+str(key)+' ratchet key: '+binascii.b2a_base64(item)
+                print 'The G value for each user should be passed securely to that user'
+                for key, item in org.G.iteritems():
+                    if key != 0:
+                        print 'G for user '+str(key)+' is: '+ binascii.b2a_base64(item)
+                pU = org.state['pU']
+                pW = org.state['pW']
+                G0 = org.G[0]
+                v = org.state['v']
+            mypart.initState(group_name, pU, pW, userrtkeylist, num_users, G0, v, my_index= 0)
+            ans = raw_input('When everyone has the group data, hit <RETURN>')
+        else:
+            print 'Your identity key is '+binascii.b2a_base64(mypart.identityPKey)
+            print 'Your handshake key is '+binascii.b2a_base64(mypart.handshakePKey)
+            print 'Your ratchet key is '+binascii.b2a_base64(mypart.ratchetPKey)
+            print 'The following required information will be provided by the group organizer'
+            my_index = int(raw_input('Input your user number: '))
+            group_identityPKey = binascii.a2b_base64(raw_input('Input the group identity key: '))
+            group_handshakePKey = binascii.a2b_base64(raw_input('Input the group handshake key: '))
+            group_ratchetPKey = binascii.a2b_base64(raw_input('Input the group ratchet key: '))
+            G = binascii.a2b_base64(raw_input('Input G: '))
+            R[my_index] = mypart.ratchetPKey
+            for i in range(num_users):
+                if i != my_index:
+                    R[i] = binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s ratchet key: '))
+            mypart.initState(group_name, group_identityPKey, group_handshakePKey, R, num_users, G, group_ratchetPKey, my_index=my_index)
+
+
+
+        myname = raw_input('What is your name? ')
+        print 'Connecting to ' + HOST + '...'
+        with socketcontext(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((HOST, PORT))
             chatThread(s, mypart, myname)
 
