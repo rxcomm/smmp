@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import re
 import binascii
 import socket
 import threading
@@ -204,8 +205,14 @@ def receiveThread(sock, mypart, stdscr, input_win, output_win, title_win):
                     title_win.addstr(0, 0, 'Group: ', curses.color_pair(2))
                     title_win.addstr(mypart.state['group_name'], curses.color_pair(2))
                     title_win.addstr(' | ', curses.color_pair(3))
-                    title_win.addstr('Status: ', curses.color_pair(2))
-                    title_win.addstr(data[6:].strip(), curses.color_pair(2))
+                    if int(re.search('\d+', data[6:]).group()) == mypart.group_size:
+                        clr = 2
+                    else:
+                        clr = 1
+                    title_win.addstr('Status: ', curses.color_pair(clr))
+                    title_win.addstr(data[6:].strip(), curses.color_pair(clr))
+                    title_win.addstr(' | ', curses.color_pair(3))
+                    title_win.addstr('Users in group: '+str(mypart.group_size), curses.color_pair(clr))
                 else:
                     output_win.addstr(mypart.decrypt(data))
         input_win.move(cursory, cursorx)

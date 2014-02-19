@@ -22,6 +22,10 @@ try:
         if not data:
             print 'Disconnected'
             sys.exit()
-        print binascii.b2a_base64(data)
+        try:
+            data.decode('ascii')
+            print data
+        except UnicodeDecodeError:
+            print binascii.b2a_base64(data)
 except KeyboardInterrupt:
     print 'Disconnected'
