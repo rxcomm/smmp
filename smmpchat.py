@@ -146,7 +146,9 @@ def windows():
     curses.noecho()
     curses.start_color()
     curses.use_default_colors()
-    curses.init_pair(3, 2, -1)
+    curses.init_pair(1, curses.COLOR_RED, -1)
+    curses.init_pair(2, curses.COLOR_CYAN, -1)
+    curses.init_pair(3, curses.COLOR_GREEN, -1)
     curses.cbreak()
     curses.curs_set(1)
     (sizey, sizex) = stdscr.getmaxyx()
@@ -162,6 +164,9 @@ def windows():
     output_win.idlok(1)
     output_win.scrollok(1)
     output_win.leaveok(0)
+    title_win.idlok(1)
+    title_win.scrollok(1)
+    title_win.leaveok(0)
     return stdscr, input_win, output_win, title_win
 
 def closeWindows(stdscr):
@@ -177,7 +182,7 @@ def usage():
     print ' -g: generate a key database for a nick'
     exit()
 
-def receiveThread(sock, mypart, stdscr, input_win, output_win):
+def receiveThread(sock, mypart, stdscr, input_win, output_win, title_win):
     global screen_needs_update
     while True:
         data = ''
@@ -195,13 +200,19 @@ def receiveThread(sock, mypart, stdscr, input_win, output_win):
         for data in data_list:
             if data != '':
                 if data[:6] == 'SYSMSG':
-                    output_win.addstr(data[6:])
+                    title_win.clear()
+                    title_win.addstr(0, 0, 'Group: ', curses.color_pair(2))
+                    title_win.addstr(mypart.state['group_name'], curses.color_pair(2))
+                    title_win.addstr(' | ', curses.color_pair(3))
+                    title_win.addstr('Status: ', curses.color_pair(2))
+                    title_win.addstr(data[6:].strip(), curses.color_pair(2))
                 else:
                     output_win.addstr(mypart.decrypt(data))
         input_win.move(cursory, cursorx)
         input_win.cursyncup()
         input_win.noutrefresh()
         output_win.noutrefresh()
+        title_win.noutrefresh()
         screen_needs_update = True
         lock.release()
 
@@ -214,7 +225,7 @@ def chatThread(sock, mypart, myname):
     input_win.addstr(0, 0, myname+':> ')
     textpad = _Textbox(input_win, insert_mode=True)
     textpad.stripspaces = True
-    t = threading.Thread(target=receiveThread, args=(sock,mypart,stdscr,input_win,output_win))
+    t = threading.Thread(target=receiveThread, args=(sock,mypart,stdscr,input_win,output_win,title_win))
     t.daemon = True
     t.start()
     try:
