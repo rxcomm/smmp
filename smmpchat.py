@@ -214,7 +214,10 @@ def receiveThread(sock, mypart, stdscr, input_win, output_win, title_win):
                     title_win.addstr(' | ', curses.color_pair(3))
                     title_win.addstr('Users in group: '+str(mypart.group_size), curses.color_pair(clr))
                 else:
-                    output_win.addstr(mypart.decrypt(data))
+                    try:
+                        output_win.addstr(mypart.decrypt(data))
+                    except BummerUndecryptable:
+                        output_win.addstr('Undecryptable message\n')
         input_win.move(cursory, cursorx)
         input_win.cursyncup()
         input_win.noutrefresh()
