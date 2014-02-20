@@ -5,7 +5,8 @@ import hmac
 import gnupg
 import os
 import sys
-from time import time
+from random import randint
+from time import time, sleep
 from passlib.utils.pbkdf2 import pbkdf2
 from curve25519 import keys
 
@@ -91,6 +92,7 @@ class Participant:
         self.identityKey, self.identityPKey = self.genKey()
         self.handshakeKey, self.handshakePKey = self.genKey()
         self.ratchetKey, self.ratchetPKey = self.genKey()
+        self.resync_required = False
 
     def strxor(self, s0, s1):
         l = [chr(ord(a)^ord(b)) for a,b in zip(s0, s1)]
@@ -178,7 +180,7 @@ class Participant:
 
         header = self.dec(self.state['HK'], msg1)
         if not header or header == '':
-            raise BummerUndecryptable
+            return self.resyncReceive(msg[:-32])
         Pnum = int(header[:3])
         self.state['R'][Pnum] = header[3:]
         body = self.dec(self.state['MK'], msg[103:-32])
@@ -218,6 +220,43 @@ class Participant:
                          print ' R'+str(index)+': '+binascii.b2a_base64(item).strip()
                  else:
                      print key + ': ' + str(self.state[key])
+
+    def resyncSend(self, sock):
+        count = 0
+        v, V = self.genKey()
+        msg1 = self.enc(self.state['v'], '\x00' + v)
+        mac = hmac.new(self.state['v'], msg1, hashlib.sha256).digest()
+        self.resync_required = False
+        self.state['v'] = v
+        for i in range(len(self.state['R'])):
+            self.state['R'][i] = '\x00' * 32
+        DHR = '\x55' * 32
+        self.state['RK'] = hashlib.sha256(DHR +
+                   self.genDH(self.state['v'], DHR)).digest()
+        self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
+        self.state['NHK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
+        self.state['MK'] = pbkdf2(self.state['RK'], b'\x03', 10, prf='hmac-sha256')
+        sock.send(msg1 + mac + 'EOP')
+        return 'Resync complete send'
+
+    def resyncReceive(self, ciphertext):
+        try:
+            plaintext = self.dec(self.state['v'], ciphertext)
+        except (DecodeError, ValueError, UnicodeDecodeError):
+            raise BummerUndecryptable
+        if plaintext[:1] != '\x00' or len(plaintext[1:]) != 32 or ciphertext is None:
+            raise BummerUndecryptable
+        else:
+            self.state['v'] = plaintext[1:]
+            for i in range(len(self.state['R'])):
+                self.state['R'][i] = '\x00' * 32
+            DHR = '\x55' * 32
+            self.state['RK'] = hashlib.sha256(DHR +
+                       self.genDH(self.state['v'], DHR)).digest()
+            self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
+            self.state['NHK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
+            self.state['MK'] = pbkdf2(self.state['RK'], b'\x03', 10, prf='hmac-sha256')
+            return 'System resynced received\n'
 
 class BummerUndecryptable(Exception):
     def __init__(self):

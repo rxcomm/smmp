@@ -7,11 +7,12 @@ import threading
 import sys
 import curses
 import gnupg
+from random import randint
 from curses.textpad import Textbox
 from random import randint
 from contextlib import contextmanager
 from time import sleep
-from smmp import Participant, Organizer, BummerUndecryptable
+from smmp import Participant, Organizer, BummerUndecryptable, BadHMAC
 from StringIO import StringIO
 from getpass import getpass
 
@@ -214,7 +215,7 @@ def receiveThread(sock, mypart, stdscr, input_win, output_win, title_win):
                 else:
                     try:
                         output_win.addstr(mypart.decrypt(data))
-                    except BummerUndecryptable:
+                    except (BummerUndecryptable, ValueError, UnicodeDecodeError):
                         output_win.addstr('Undecryptable message\n', curses.color_pair(1))
                     except BadHMAC:
                         output_win.addstr('Bad HMAC\n', curses.color_pair(1))
@@ -235,6 +236,7 @@ def chatThread(sock, mypart, myname):
     input_win.addstr(0, 0, myname+':> ')
     textpad = _Textbox(input_win, insert_mode=True)
     textpad.stripspaces = True
+    delay = randint(1, mypart.group_size + 10)
     t = threading.Thread(target=receiveThread, args=(sock,mypart,stdscr,input_win,output_win,title_win))
     t.daemon = True
     t.start()
@@ -242,29 +244,41 @@ def chatThread(sock, mypart, myname):
         while True:
             lock.acquire()
             data = textpad.edit(validator)
-            if myname+':> .quit' in data:
+            if myname+':> .resync' in data:
+                msg = mypart.resyncSend(sock)
+                input_win.clear()
+                input_win.addstr(myname+':> ')
+                output_win.addstr(msg + '\n', curses.color_pair(3))
+                output_win.noutrefresh()
+                input_win.move(0, len(myname) +3)
+                input_win.cursyncup()
+                input_win.noutrefresh()
+                screen_needs_update = True
+                lock.release()
+            elif myname+':> .quit' in data:
                 closeWindows(stdscr)
                 ans = raw_input('Save the state? Y/n ')
                 if ans != 'n' and ans != 'N':
                     saveState(mypart)
                 sys.exit()
-            input_win.clear()
-            input_win.addstr(myname+':> ')
-            output_win.addstr(data.replace('\n', '') + '\n', curses.color_pair(3))
-            output_win.noutrefresh()
-            input_win.move(0, len(myname) +3)
-            input_win.cursyncup()
-            input_win.noutrefresh()
-            screen_needs_update = True
-            data = data.replace('\n', '') + '\n'
-            try:
-                sock.send(mypart.encrypt(data) + 'EOP')
-            except socket.error:
-                input_win.addstr('Disconnected')
-                input_win.refresh()
-                closeWindows(stdscr)
-                sys.exit()
-            lock.release()
+            else:
+                input_win.clear()
+                input_win.addstr(myname+':> ')
+                output_win.addstr(data.replace('\n', '') + '\n', curses.color_pair(3))
+                output_win.noutrefresh()
+                input_win.move(0, len(myname) +3)
+                input_win.cursyncup()
+                input_win.noutrefresh()
+                screen_needs_update = True
+                data = data.replace('\n', '') + '\n'
+                try:
+                    sock.send(mypart.encrypt(data) + 'EOP')
+                except socket.error:
+                    input_win.addstr('Disconnected')
+                    input_win.refresh()
+                    closeWindows(stdscr)
+                    sys.exit()
+                lock.release()
     except KeyboardInterrupt:
         closeWindows(stdscr)
         ans = raw_input('Save the state? Y/n ')
@@ -289,6 +303,8 @@ def saveState(mypart):
         f.write(mypart.state['group_name']+'\n')
         f.write(str(mypart.state['my_index'])+'\n')
         f.write(str(mypart.group_size)+'\n')
+        resync_required = '1' if mypart.resync_required else '0'
+        f.write(resync_required+'\n')
         for key, item in mypart.state['R'].iteritems():
             f.write(binascii.b2a_base64(item))
 
@@ -306,9 +322,11 @@ def loadState(mypart):
         mypart.state['group_name'] = data_list[5]
         mypart.state['my_index'] = int(data_list[6])
         mypart.group_size = int(data_list[7])
+        resync_required = data_list[8]
+        mypart.resync_required = True if resync_required == '1' else False
         mypart.state['R'] = {}
         for i in range(mypart.group_size):
-            mypart.state['R'][i] = binascii.a2b_base64(data_list[8+i])
+            mypart.state['R'][i] = binascii.a2b_base64(data_list[9+i])
 
 
 
