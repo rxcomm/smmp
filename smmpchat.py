@@ -214,8 +214,13 @@ def receiveThread(sock, mypart, stdscr, input_win, output_win, title_win):
                     title_win.addstr('Users in group: '+str(mypart.group_size), curses.color_pair(clr))
                 else:
                     try:
-                        output_win.addstr(mypart.decrypt(data))
+                        msg = mypart.decrypt(data)
+                        if msg[:31] == 'Ratchet resync message received':
+                            output_win.addstr(msg + '\n', curses.color_pair(1))
+                        else:
+                            output_win.addstr(msg)
                     except (BummerUndecryptable, ValueError, UnicodeDecodeError):
+                        mypart.resync_required = True
                         output_win.addstr('Undecryptable message\n', curses.color_pair(1))
                     except BadHMAC:
                         output_win.addstr('Bad HMAC\n', curses.color_pair(1))
@@ -244,11 +249,11 @@ def chatThread(sock, mypart, myname):
         while True:
             lock.acquire()
             data = textpad.edit(validator)
-            if myname+':> .resync' in data:
+            if myname+':> .resync' in data or mypart.resync_required:
                 msg = mypart.resyncSend(sock)
                 input_win.clear()
                 input_win.addstr(myname+':> ')
-                output_win.addstr(msg + '\n', curses.color_pair(3))
+                output_win.addstr(msg + '\n', curses.color_pair(1))
                 output_win.noutrefresh()
                 input_win.move(0, len(myname) +3)
                 input_win.cursyncup()

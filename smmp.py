@@ -223,21 +223,27 @@ class Participant:
 
     def resyncSend(self, sock):
         count = 0
+        while count < self.state['my_index'] + 1:
+            sleep(0.25)
+            if not self.resync_required:
+                break
+            count += 1
         v, V = self.genKey()
         msg1 = self.enc(self.state['v'], '\x00' + v)
         mac = hmac.new(self.state['v'], msg1, hashlib.sha256).digest()
-        self.resync_required = False
-        self.state['v'] = v
-        for i in range(len(self.state['R'])):
-            self.state['R'][i] = '\x00' * 32
-        DHR = '\x55' * 32
-        self.state['RK'] = hashlib.sha256(DHR +
-                   self.genDH(self.state['v'], DHR)).digest()
-        self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
-        self.state['NHK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
-        self.state['MK'] = pbkdf2(self.state['RK'], b'\x03', 10, prf='hmac-sha256')
-        sock.send(msg1 + mac + 'EOP')
-        return 'Resync complete send'
+        if self.resync_required:
+            self.state['v'] = v
+            for i in range(len(self.state['R'])):
+                self.state['R'][i] = '\x00' * 32
+            DHR = '\x55' * 32
+            self.state['RK'] = hashlib.sha256(DHR +
+                       self.genDH(self.state['v'], DHR)).digest()
+            self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
+            self.state['NHK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
+            self.state['MK'] = pbkdf2(self.state['RK'], b'\x03', 10, prf='hmac-sha256')
+            sock.send(msg1 + mac + 'EOP')
+            self.resync_required = False
+        return 'Resync completed'
 
     def resyncReceive(self, ciphertext):
         try:
@@ -247,6 +253,7 @@ class Participant:
         if plaintext[:1] != '\x00' or len(plaintext[1:]) != 32 or ciphertext is None:
             raise BummerUndecryptable
         else:
+            self.resync_required = False
             self.state['v'] = plaintext[1:]
             for i in range(len(self.state['R'])):
                 self.state['R'][i] = '\x00' * 32
@@ -256,7 +263,7 @@ class Participant:
             self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
             self.state['NHK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
             self.state['MK'] = pbkdf2(self.state['RK'], b'\x03', 10, prf='hmac-sha256')
-            return 'System resynced received\n'
+            return 'Ratchet resync message received - System resynced!'
 
 class BummerUndecryptable(Exception):
     def __init__(self):
