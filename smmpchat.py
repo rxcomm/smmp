@@ -108,8 +108,6 @@ def decFile(file_name, passphrase):
     yield a
     a.close()
 
-
-
 class _Textbox(Textbox):
     """
     curses.textpad.Textbox requires users to ^g on completion, which is sort
@@ -362,22 +360,20 @@ if __name__ == '__main__':
                 userhskeylist[0] = mypart.handshakePKey
                 userrtkeylist[0] = mypart.ratchetPKey
                 org.initState(group_name, useridkeylist, userhskeylist, userrtkeylist, 0)
-                print 'The following items should be passed securely to all participants'
+                print 'The following items can be passed publicly to all participants'
                 print 'The group identity key: '+binascii.b2a_base64(org.state['pU'])
                 print 'The group handshake key: '+binascii.b2a_base64(org.state['pW'])
-                print 'The group ratchet key: '+binascii.b2a_base64(org.state['v'])
                 print 'The participant ratchet keys are:'
                 for key, item in org.state['R'].iteritems():
                     print 'Participant '+str(key)+' ratchet key: '+binascii.b2a_base64(item)
                 print 'The G value for each user should be passed securely to that user'
                 for key, item in org.G.iteritems():
                     if key != 0:
-                        print 'G for user '+str(key)+' is: '+ binascii.b2a_base64(item)
+                        print 'G for user '+str(key)+' is: '+ binascii.b2a_base64(item).strip()
                 pU = org.state['pU']
                 pW = org.state['pW']
                 G0 = org.G[0]
-                v = org.state['v']
-            mypart.initState(group_name, pU, pW, userrtkeylist, num_users, G0, v, my_index= 0)
+            mypart.initState(group_name, pU, pW, userrtkeylist, num_users, G0, my_index= 0)
             ans = raw_input('When everyone has the group data, hit <RETURN>')
         else:
             print 'Your identity key is '+binascii.b2a_base64(mypart.identityPKey)
@@ -387,13 +383,12 @@ if __name__ == '__main__':
             my_index = int(raw_input('Input your user number: '))
             group_identityPKey = binascii.a2b_base64(raw_input('Input the group identity key: '))
             group_handshakePKey = binascii.a2b_base64(raw_input('Input the group handshake key: '))
-            group_ratchetPKey = binascii.a2b_base64(raw_input('Input the group ratchet key: '))
             G = binascii.a2b_base64(raw_input('Input G: '))
             R[my_index] = mypart.ratchetPKey
             for i in range(num_users):
                 if i != my_index:
                     R[i] = binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s ratchet key: '))
-            mypart.initState(group_name, group_identityPKey, group_handshakePKey, R, num_users, G, group_ratchetPKey, my_index=my_index)
+            mypart.initState(group_name, group_identityPKey, group_handshakePKey, R, num_users, G, my_index=my_index)
 
 
 

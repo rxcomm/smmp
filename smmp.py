@@ -26,7 +26,6 @@ class Organizer:
         self.mode = True
         self.state = {}
         self.state['u'], self.state['pU'] = self.genKey()
-        self.state['v'], self.state['pV'] = self.genKey()
         self.state['w'], self.state['pW'] = self.genKey()
 
     def strxor(self, s0, s1):
@@ -76,7 +75,6 @@ class Organizer:
                { 'group_name': self.group_name,
                  'my_index': my_index,
                  'pU': self.state['pU'],
-                 'v': self.state['v'],
                  'pW': self.state['pW'],
                  'R' : ratchetKeys,
                }
@@ -110,7 +108,7 @@ class Participant:
         pubkey = key.get_public().serialize()
         return privkey, pubkey
 
-    def initState(self, group_name, group_identityPKey, group_handshakePKey, group_ratchetKeys, group_size, G, v, my_index=1):
+    def initState(self, group_name, group_identityPKey, group_handshakePKey, group_ratchetKeys, group_size, G, my_index=1):
         """
         Here group_name is the group name, identityKeys, handshakeKeys, and ratchetKeys
         are dictionaries with key:value pairs equal to the participant index number
@@ -124,6 +122,7 @@ class Participant:
         HK = pbkdf2(mkey, b'\x01', 10, prf='hmac-sha256')
         NHK = pbkdf2(mkey, b'\x02', 10, prf='hmac-sha256')
         MK = pbkdf2(mkey, b'\x03', 10, prf='hmac-sha256')
+        v = pbkdf2(mkey, b'\x04', 10, prf='hmac-sha256')
         DHR = None
 
         self.state = \
