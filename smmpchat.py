@@ -361,12 +361,13 @@ if __name__ == '__main__':
                 userrtkeylist[0] = mypart.ratchetPKey
                 org.initState(group_name, useridkeylist, userhskeylist, userrtkeylist, 0)
                 print 'The following items can be passed publicly to all participants'
-                print 'The group identity key: '+binascii.b2a_base64(org.state['pU'])
-                print 'The group handshake key: '+binascii.b2a_base64(org.state['pW'])
-                print 'The participant ratchet keys are:'
+                print 'The public group identity key: '+binascii.b2a_base64(org.state['pU'])
+                print 'The public group handshake key: '+binascii.b2a_base64(org.state['pW'])
+                print 'The participant public ratchet keys are:'
                 for key, item in org.state['R'].iteritems():
-                    print 'Participant '+str(key)+' ratchet key: '+binascii.b2a_base64(item)
-                print 'The G value for each user should be passed securely to that user'
+                    print 'Participant '+str(key)+' public ratchet key: '+binascii.b2a_base64(item).strip()
+                print 'If you trust all users, G may be passed insecurely to all users. Otherwise,'
+                print 'the G value for each user should be passed securely to that user'
                 for key, item in org.G.iteritems():
                     if key != 0:
                         print 'G for user '+str(key)+' is: '+ binascii.b2a_base64(item).strip()
@@ -376,9 +377,9 @@ if __name__ == '__main__':
             mypart.initState(group_name, pU, pW, userrtkeylist, num_users, G0, my_index= 0)
             ans = raw_input('When everyone has the group data, hit <RETURN>')
         else:
-            print 'Your identity key is '+binascii.b2a_base64(mypart.identityPKey)
-            print 'Your handshake key is '+binascii.b2a_base64(mypart.handshakePKey)
-            print 'Your ratchet key is '+binascii.b2a_base64(mypart.ratchetPKey)
+            print 'Your public identity key is '+binascii.b2a_base64(mypart.identityPKey)
+            print 'Your public handshake key is '+binascii.b2a_base64(mypart.handshakePKey)
+            print 'Your public ratchet key is '+binascii.b2a_base64(mypart.ratchetPKey)
             print 'The following required information will be provided by the group organizer'
             my_index = int(raw_input('Input your user number: '))
             group_identityPKey = binascii.a2b_base64(raw_input('Input the group identity key: '))
