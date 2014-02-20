@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import binascii
 import hmac
 import gnupg
@@ -143,6 +144,7 @@ class Participant:
         pad_length = 103 - len(msg1)
         pad = os.urandom(pad_length - 1) + chr(pad_length)
         msg = msg1 + pad + msg2
+        mac = hmac.new(self.state['v'], msg, hashlib.sha256).digest()
         self.state['R'][self.state['my_index']] = Rnew
         DHR = '\x00' * 32
         for i in range(self.group_size):
@@ -153,7 +155,7 @@ class Participant:
         self.state['HK'] = self.state['NHK']
         self.state['NHK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
         self.state['MK'] = pbkdf2(self.state['RK'], b'\x03', 10, prf='hmac-sha256')
-        return msg
+        return msg + mac
 
     def enc(self, key, plaintext):
         key = binascii.hexlify(key)
@@ -168,6 +170,8 @@ class Participant:
         return msg.data
 
     def decrypt(self, msg):
+        if hmac.new(self.state['v'], msg[:-32], hashlib.sha256).digest() != msg[-32:]:
+            raise BadHMAC
         pad = msg[102:103]
         pad_length = ord(pad)
         msg1 = msg[:103-pad_length]
@@ -177,7 +181,7 @@ class Participant:
             raise BummerUndecryptable
         Pnum = int(header[:3])
         self.state['R'][Pnum] = header[3:]
-        body = self.dec(self.state['MK'], msg[103:])
+        body = self.dec(self.state['MK'], msg[103:-32])
         if not body or body == '':
             raise BummerUndecryptable
         DHR = '\x00' * 32
@@ -216,5 +220,9 @@ class Participant:
                      print key + ': ' + str(self.state[key])
 
 class BummerUndecryptable(Exception):
+    def __init__(self):
+        pass
+
+class BadHMAC(Exception):
     def __init__(self):
         pass

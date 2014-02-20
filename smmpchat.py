@@ -216,6 +216,8 @@ def receiveThread(sock, mypart, stdscr, input_win, output_win, title_win):
                         output_win.addstr(mypart.decrypt(data))
                     except BummerUndecryptable:
                         output_win.addstr('Undecryptable message\n', curses.color_pair(1))
+                    except BadHMAC:
+                        output_win.addstr('Bad HMAC\n', curses.color_pair(1))
         input_win.move(cursory, cursorx)
         input_win.cursyncup()
         input_win.noutrefresh()
