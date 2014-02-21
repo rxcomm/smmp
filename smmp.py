@@ -232,20 +232,23 @@ class Participant:
         msg1 = self.enc(self.state['v'], '\x00' + v)
         mac = hmac.new(self.state['v'], msg1, hashlib.sha256).digest()
         if self.resync_required:
+            self.resync_required = False
             self.state['v'] = v
             for i in range(len(self.state['R'])):
-                self.state['R'][i] = '\x00' * 32
-            DHR = '\x55' * 32
+                self.state['R'][i] = hashlib.sha256(v + str(i)).digest()
+            DHR = '\x00' * 32
+            for i in range(len(self.state['R'])):
+                DHR = self.strxor(DHR, self.state['R'][i])
             self.state['RK'] = hashlib.sha256(DHR +
                        self.genDH(self.state['v'], DHR)).digest()
             self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
             self.state['NHK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
             self.state['MK'] = pbkdf2(self.state['RK'], b'\x03', 10, prf='hmac-sha256')
             sock.send(msg1 + mac + 'EOP')
-            self.resync_required = False
         return 'Resync completed'
 
     def resyncReceive(self, ciphertext):
+        self.resync_required = False
         try:
             plaintext = self.dec(self.state['v'], ciphertext)
         except (DecodeError, ValueError, UnicodeDecodeError):
@@ -253,11 +256,12 @@ class Participant:
         if plaintext[:1] != '\x00' or len(plaintext[1:]) != 32 or ciphertext is None:
             raise BummerUndecryptable
         else:
-            self.resync_required = False
             self.state['v'] = plaintext[1:]
             for i in range(len(self.state['R'])):
-                self.state['R'][i] = '\x00' * 32
-            DHR = '\x55' * 32
+                self.state['R'][i] = hashlib.sha256(self.state['v'] + str(i)).digest()
+            DHR = '\x00' * 32
+            for i in range(len(self.state['R'])):
+                DHR = self.strxor(DHR, self.state['R'][i])
             self.state['RK'] = hashlib.sha256(DHR +
                        self.genDH(self.state['v'], DHR)).digest()
             self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')

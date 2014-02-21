@@ -216,7 +216,7 @@ def receiveThread(sock, mypart, stdscr, input_win, output_win, title_win):
                     try:
                         msg = mypart.decrypt(data)
                         if msg[:31] == 'Ratchet resync message received':
-                            output_win.addstr(msg + '\n', curses.color_pair(1))
+                            output_win.addstr(msg, curses.color_pair(1))
                         else:
                             output_win.addstr(msg)
                     except (BummerUndecryptable, ValueError, UnicodeDecodeError):
@@ -250,6 +250,7 @@ def chatThread(sock, mypart, myname):
             lock.acquire()
             data = textpad.edit(validator)
             if myname+':> .resync' in data or mypart.resync_required:
+                mypart.resync_required = True
                 msg = mypart.resyncSend(sock)
                 input_win.clear()
                 input_win.addstr(myname+':> ')
