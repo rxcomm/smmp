@@ -232,19 +232,24 @@ class Participant:
         v, V = self.genKey()
         msg1 = self.enc(self.state['v'], '\x00' + v)
         mac = hmac.new(self.state['v'], msg1, hashlib.sha256).digest()
+        R = {}
+        for i in range(len(self.state['R'])):
+            R[i] = hashlib.sha256(v + str(i)).digest()
+        DHR = '\x00' * 32
+        for i in range(len(self.state['R'])):
+            DHR = self.strxor(DHR, R[i])
+        RK = hashlib.sha256(DHR + self.genDH(v, DHR)).digest()
+        HK = pbkdf2(RK, b'\x01', 10, prf='hmac-sha256')
+        NHK = pbkdf2(RK, b'\x02', 10, prf='hmac-sha256')
+        MK = pbkdf2(RK, b'\x03', 10, prf='hmac-sha256')
         if self.resync_required:
             self.resync_required = False
             self.state['v'] = v
-            for i in range(len(self.state['R'])):
-                self.state['R'][i] = hashlib.sha256(v + str(i)).digest()
-            DHR = '\x00' * 32
-            for i in range(len(self.state['R'])):
-                DHR = self.strxor(DHR, self.state['R'][i])
-            self.state['RK'] = hashlib.sha256(DHR +
-                       self.genDH(self.state['v'], DHR)).digest()
-            self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
-            self.state['NHK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
-            self.state['MK'] = pbkdf2(self.state['RK'], b'\x03', 10, prf='hmac-sha256')
+            self.state['RK'] = RK
+            self.state['HK'] = HK
+            self.state['NHK'] = NHK
+            self.state['MK'] = MK
+            self.state['R'] = R
             sock.send(msg1 + mac + 'EOP')
         return 'Resync completed'
 

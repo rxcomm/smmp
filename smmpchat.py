@@ -256,8 +256,10 @@ def chatThread(sock, mypart, myname):
             lock.acquire()
             data = textpad.edit(validator)
             if myname+':> .resync' in data or mypart.resync_required:
+                lock.release()
                 mypart.resync_required = True
                 msg = mypart.resyncSend(sock)
+                lock.acquire()
                 input_win.clear()
                 input_win.addstr(myname+':> ')
                 output_win.addstr(msg + '\n', curses.color_pair(1))
