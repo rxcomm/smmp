@@ -60,10 +60,6 @@ class Organizer:
             self.L[i] = self.tripleDH(self.state['u'], self.state['w'],
                                       identityKeys[i],
                                       handshakeKeys[i])
-        mkey = '\x00' * 32
-        for i in range(self.group_size):
-            mkey = self.strxor(mkey, self.L[i])
-        mkey = hashlib.sha256(mkey).digest()
         self.G = {}
         for i in range(self.group_size):
             self.G[i] = self.genDH(self.state['w'], ratchetKeys[i])# initialize G strings ;-)
