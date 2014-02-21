@@ -6,3 +6,11 @@ random_seed
 build/
 dist/
 *egg*
+spec/smmp.aux
+spec/smmp.bbl
+spec/smmp.blg
+spec/smmp.d
+spec/smmp.dvi
+spec/smmp.log
+spec/smmpNotes.bib
+spec/smmp.ps

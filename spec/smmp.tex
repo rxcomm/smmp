@@ -1,0 +1,347 @@
+\documentclass[%
+%reprint,
+%superscriptaddress,
+%groupedaddress,
+%unsortedaddress,
+%runinaddress,
+%frontmatterverbose, 
+preprint,
+%showpacs,preprintnumbers,
+%nofootinbib,
+%nobibnotes,
+%bibnotes,
+amsmath,amssymb,
+aps,
+%pra,
+prb,
+%rmp,
+%prstab,
+%prstper,
+floatfix,
+]{revtex4-1}
+
+
+\usepackage{graphicx}% Include figure files
+%\usepackage{dcolumn}% Align table columns on decimal point
+\usepackage{bm}% bold math
+\usepackage{amsmath}
+\usepackage{subfigure}
+
+\begin{document}
+
+\preprint{Version 0.3}
+
+\title{SMMP: A Secure Multi-Party Messaging Protocol}% Force line breaks with \\
+
+\author{David R. Andersen}
+ \email{k0rx@uiowa.edu}
+ \altaffiliation[Also at ]{Department of Physics and Astronomy, The University of Iowa.}%Lines break automatically or can be forced with \\
+\author{Mark S. Andersland}
+ \affiliation{Department of Electrical and Computer Engineering, The University
+ of Iowa, Iowa City, IA 52242}
+\author{Tycho J. Andersen}
+ \affiliation{Canonical, Inc.\\ Madison, WI 53703}
+
+\date{\today}% It is always \today, today,
+             %  but any date may be explicitly specified
+
+\begin{abstract}
+We describe a new secure, multi-party, synchronous communication protocol.
+The protocol follows a peer-to-peer model and provides perfect forward
+secrecy, perfect future secrecy, and plausible deniability for participants in
+the conversation, as long as at least two participants are honest.
+The protocol uses the elliptic-curve Diffie-Hellman key agreement
+protocol to generate a set of shared secrets between a group of
+participants. The group is initially formed by an Organizer.
+The Organizer role is abandoned when key agreement is accomplished, leaving
+the original organizer as a one of $N$ peers in the messaging network.
+All setup operations prior to key agreement can take place over an insecure
+channel.
+\end{abstract}
+
+\pacs{73.20.Mf}% PACS, the Physics and Astronomy
+                             % Classification Scheme.
+%\keywords{Suggested keywords}%Use showkeys class option if keyword
+                              %display desired
+\maketitle
+
+%\tableofcontents
+\section{\label{sec:Introduction}Introduction}
+Secure multi-party messaging has been an elusive goal of security researchers
+for a long time. The initial `virtual server' approach\cite{ref:bian}
+was deemed unsatisfactory
+because it has the unfortunate drawback of not permitting all participants to
+confirm that they were receiving unmodified copies of all messages.
+A further attempt to solve this problem\cite{ref:goldberg} was incomplete
+because of the lack of a simple key-agreement strategy. Work on the problem
+continues to date, most notably with\cite{ref:cryptocat}, however the
+key-agreement problem remains unsolved.
+
+In this paper, we describe a novel secure multi-party messaging protocol with a
+simple key-agreement algorithm that provides perfect forward secrecy (PFS),
+perfect future secrecy (PFuS),
+and plausible deniability (PD) for participants in a group conversation. Our protocol
+is a peer-to-peer protocol, whereby each
+participant periodically contributes
+key material to the group key set. The group is
+initially constituted by an Organizer. Following the formation of the group, the
+Organizer role is abandoned and the initial Organizer assumes a peer role, the
+same as all other Participants.
+
+\section{\label{sec:keypoints}Key Points}
+\begin{itemize}
+\item Each group key agreement is facilitated by an Organizer, who is also
+Participant $P_0$. Following the key agreement stage, the Organizer is no longer
+required and the Participant $P_0$ role is that of a peer like any other
+participant.
+\item Elliptic curve Diffie-Hellman key operations are performed on curve25519
+with 32 byte
+public and private keys.
+\item The protocol is synchronous. A method for resynchronizing those
+participants that lose synchronization due to lost packets from collisions or
+transport failure is included in the protocol.
+\item Group setup is via an insecure channel.
+\item Putative participants authenticate to the Organizer, prior to
+activation of the group protocol.
+\item Participants may not be added to the group. This would
+require a reinitialization of the group secrets. A Participant may leave the
+group.
+\item The underlying symmetric encryption algorithm used for communication is
+unspecified.
+\end{itemize}
+
+\section{\label{sec:notation}Notation}
+The following notation is used:
+\begin{itemize}
+\item $N$ is the total number of participants in the group (including the
+Organizer)
+\item $\oplus$ is the XOR operator
+\item $\{N_i\}$ is the set of all $N_i$ and $\{N_i\}_m = N_m$.
+\item $\oplus_{j \ne i} \, x_j$ means XOR of all $x_j$ except $x_i$.
+\item  $\oplus_i \, x_i$ means XOR of all $x_i$.
+\item $\mathcal{\hat{A}}_i$ is the ratchet state for
+participant $P_i$.
+\item $||$ is the concatenation operator
+\item Lower case keys are private ECDH keys.
+\item Upper case keys are public ECDH keys.
+\item hash() is a secure, one-way cryptographic hash function.
+\item hmac$(k,m)$ is a secure hashing message authentication function that
+hashes a message $m$ using key $k$.
+\item KDF() is a secure key derivation function, \textit{e.g.} pbkdf2.
+\item $c = e(k, m)$ and $m = d(k,c)$ are the underlying (unspecified) symmetric
+encryption and decryption algorithms that use a key $k$ to transform a plaintext
+$m$ into ciphertext $c$ and \textit{vice versa}.
+\item MK is a master key from which the initial ratchet state
+$\mathcal{\hat{A}}_i$ is computed by each participant $P_i$. This parameter is
+securely erased upon computing the initial ratchet state.
+\item $X$ is the generator for curve25519 and ECDH() is the Diffie-Hellman
+operator on curve25519, \textit{i.e.} for private key $u$, the
+corresponding public key is $U = \mathrm{ECDH}(u, X)$. The shared secret between
+$y$ and $z$ is then $ \mathrm{ECDH}(y,Z) = \mathrm{ECDH}(z,Y) =
+\mathrm{ECDH}(y,\mathrm{ECDH}(z, X))$.
+\end{itemize}
+
+\section{\label{sec:protocolstate}Protocol State}
+Each Participant $P_i$ will maintain the following variables in persistent
+storage:
+\begin{itemize}
+\item RK - the root key
+\item HK - the header key
+\item NHK - the next header key
+\item mk - the message key
+\item $v$ - the group private ratchet key
+\item $\{R_i\}$ - the set of public ratchet keys from each participant $P_i$
+\item $i$ - Participant $P_i$'s participant index number
+\item $N$ - the group size
+\item group\_name - the group name (this may be different for each Participant)
+\item resync\_required - a flag used to determine if a resynchronization of the
+ratchet state is required
+\end{itemize}
+
+\section{\label{sec:keyagreement}Key Agreement}
+The Organizer and Participants complete the following steps:
+\begin{enumerate}
+\item Participant $P_0$ establishes himself as the group Organizer $O$ and solicits
+keys from other potential participants.
+\item Organizer $O$ determines the total number of participants $N$.
+\item Organizer $O$ assigns a participant index number $i$ to each
+participant.
+\item Organizer $O$ generates elliptic curve Diffie-Hellman (ECDH) persistent group
+identity, and ephemeral group handshake
+keys $(u, U )$ and $(w, W)$.
+\item Organizer $O$ forwards $U$, $W$, $N$, and $i$ to each participant $P_i$.
+\item Each participant $P_i$ generates ECDH
+persistent identity, ephemeral handshake and ephemeral ratchet keys $(b_i, B_i)$,
+$(k_i, K_i)$ and $(r_i, R_i)$.
+\item Each participant $P_i$ forwards $B_i$ and $K_i$ to Organizer $O$.
+\item Each participant $P_i$ forwards $R_i$ to all other participants in the
+group.
+\item Organizer $O$ authenticates the identity of each participant $P_i$ with
+identity key $B_i$.
+\item Each participant $P_i$ authenticates the group identity $U$ with Organizer
+$O$.
+\item Organizer $O$ computes:\\
+$L_i$ = $\mathrm{hash}(\mathrm{ECDH}(u, K_i) \,
+|| \, \mathrm{ECDH}(w, B_i) \, || \, \mathrm{ECDH}(w, K_i))$,\\
+$G_i = \mathrm{ECDH} (w, R_i) \, \oplus \, \oplus_{j \ne i} \, L_j$.
+\item Organizer $O$ forwards $G_i$ to participant $P_i$ for all participants.
+\item Participant $P_i$ computes:\\
+$\mathrm{MK} = \mathrm{hash}(\mathrm{ECDH}(k_i, U) \, ||
+\, \mathrm{ECDH}(b_i, W) \, || \, \mathrm{ECDH}(k_i, W) \oplus \, G_i \, \oplus
+\, \mathrm{ECDH}(r_i, W)$
+\item Participant $P_i$ computes his/her initial ratchet state $\mathcal{\hat{A}}_i$:\\
+$\mathrm{RK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}00)$, \\
+$\mathrm{HK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}01)$, \\
+$\mathrm{NHK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}02)$, \\
+$\mathrm{mk} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}03)$, \\
+$v = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}04)$, \\
+$\{R_i\}$ from participants, \\
+$N$ from Organizer $O$, \\
+$i$ from Organizer $O$, \\
+resync\_required = \textit{False}.
+\item The Organizer role is complete and all Organizer data
+is securely erased by participant $P_0$.
+\end{enumerate}
+
+\section{\label{sec:sending}Sending Messages}
+Participants wanting to send a message will proceed as follows:
+\begin{enumerate}
+\item When a participant $P_j$ wishes to communicate with the other
+participants, he forms a message $m$.
+\item Participant $P_j$ generates a new ephemeral ratchet key $R_j^{new}$ and
+sets $R_j = R_j^{new}$.
+\item Participant $P_j$ computes preliminary ciphertexts $c_h = e(\mathrm{HK}, j
+\, || \, R_j^{new})$ and $c_m = e(\mathrm{mk}, m)$. He the forms $c^\prime = c_h
+\, || \, c_m$.
+\item Participant $P_j$ computes hmac $c_{hmac} = \mathrm{hmac}(v, c^\prime)$.
+\item Participant $P_j$ forms $c = c^\prime \, || \, c_{hmac}$.
+\item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_j$ as
+follows:\\
+$\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v, \oplus_i
+\, R_i))$, \\
+$\mathrm{HK} = \mathrm{NHK}$, \\
+$\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
+$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
+\item Participant $P_j$ broadcasts $c$ to all participants $P_i$.
+\end{enumerate}
+
+\section{\label{sec:receiving}Receiving Messages}
+Participants receiving a message will proceed as follows:
+\begin{enumerate}
+\item Upon receipt of a ciphertext $c$, participants $P_j$ separates $c$ into
+$c^\prime$ and $c_{hmac}$ parts.
+\item Participant $P_j$ tests if $\mathrm{hash}(v, c^\prime) = c_{hmac}$. If
+they do not match, he/she raises a Bad\_HMAC exception and goes no further.
+\item Participant $P_j$ splits $c^\prime$ into header $c_h$ and message $c_m$ components
+and obtains $q \, || \, R_q^{new} = d(\mathrm{HK}, c_h)$ and $m = d(\mathrm{mk},
+c_m)$. If either of these operations fail, he/she raises a Message\_Undecryptable
+exception, sets the resync\_required flag \textit{True},
+and passes $c^\prime$ to the message-received housekeeping routine described in
+Section \ref{sec:receivehousekeeping}.
+\item Participant $P_j$ sets $R_q = R_q^{new}$.
+\item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_i$ as
+follows: \\
+$\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v, \oplus_i
+\, R_i))$, \\
+$\mathrm{HK} = \mathrm{NHK}$, \\
+$\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
+$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
+
+\end{enumerate}
+\section{\label{sec:housekeeping}Protocol Housekeeping}
+Here we list several protocol housekeeping operations that may be necessary.
+The list may be extended if other useful operations are identified.
+
+\subsection{\label{sec:receivehousekeeping}Message Received Housekeeping}
+Housekeeping messages will be routed based on a one-byte header prepended to the
+payload of the housekeeping message. The byte values and their corresponding
+housekeeping tasks are (currently there is only 1): \\
+
+\begin{centering}
+\begin{tabular}{|c|c|c|}
+\hline
+Byte Value & Housekeeping Task & Location \\
+\hline
+$0\mathrm{x}00$ & Resynchronizing the Ratchet State  & Section \ref{sec:receiveresync}\\
+\hline
+\end{tabular} \\
+\end{centering}
+\bigskip
+To determine the proper routing, the
+participant proceeds as follows:
+\begin{enumerate}
+\item Participant $P_i$ computes $b \, || \, m = d(v, c^\prime)$. He/she then
+finds the value corresponding to byte $b$ in the table above, and sends message
+$m$ and control to that section.
+\end{enumerate}
+\subsubsection{\label{sec:receiveresync}Resynchronizing the Ratchet State: $b =
+0\mathrm{x}00$}
+It is possible, during communication within the group, that a participant's
+ratchet state may become unsynchronized. Transport layer failures due to lost
+packets or packet collisions can cause a participant to be unsynchronized. If
+this is the case, a Message\_Undecryptable exception will be raised
+and control of the decryption will be passed here. The receiving participant
+will then proceed as follows:
+\begin{enumerate}
+\item Participant $P_j$ sets $v = m$.
+\item Participant $P_j$ updates his/her ratchet state
+$\mathcal{\hat{A}}_j$ as follows:\\
+$\{R_i\} = \{ \mathrm{hash}(v \, || \, i)\}$, \\
+$\mathrm{RK} = \mathrm{hash}(\oplus_i \, R_i \, || \, \mathrm{ECDH}(v, \oplus_i
+\, R_i))$, \\
+$\mathrm{HK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
+$\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
+$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
+\item Participant $P_j$ sets his resync\_required flag to \textit{False}.
+\end{enumerate}
+
+\subsection{\label{sec:sendhousekeeping}Message Send Housekeeping}
+It may be necessary at some point to send housekeeping messages. This section
+describes procedures to be followed in this case.
+
+\subsubsection{\label{sec:sendresync}Resynchronizing the Ratchet State}
+When the resync\_required flag is set to \textit{True}, the ratchet state is
+unsynchronized, and decrypting further conversation messages is impossible.
+A participant wishing to correct this situation should follow the following
+procedures:
+\begin{enumerate}
+\item Participant $P_j$ generates a new group private ratchet key $v^{new}$.
+\item participant $P_j$ computes preliminary ciphertext $c^\prime = e(v, 0\mathrm{x}00
+\, || \, v^{new})$.
+\item Participant $P_j$ computes hmac $c_{hmac} = \mathrm{hmac}(v, c^\prime)$.
+\item Participant $P_j$ forms $c = c^\prime \, || \, c_{hmac}$.
+\item Participant $P_j$ delays according to a random backoff algorithm
+that should be transport-specific and is unspecified here.
+\item Participant $P_j$ tests resync\_required to see if it is still
+\textit{True}. If not, a resynchronization message was received and no further
+action is necessary. If \textit{True}, participant $P_j$ continues with the next
+step.
+\item Participant $P_j$ broadcasts $c$ to all participants $P_i$.
+\item Participant $P_j$ updates his/her ratchet state
+$\mathcal{\hat{A}}_j$ as follows:\\
+$\{R_i\} = \{ \mathrm{hash}(v \, || \, i)\}$, \\
+$\mathrm{RK} = \mathrm{hash}(\oplus_i \, R_i \, || \, \mathrm{ECDH}(v, \oplus_i
+\, R_i))$, \\
+$\mathrm{HK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
+$\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
+$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
+\item Participant $P_j$ sets his resync\_required flag to \textit{False}.
+
+\end{enumerate}
+
+\begin{thebibliography}{99}
+\bibitem{ref:bian} J. Bian, R. Seker, and U. Topaloglu ``Off-the-Record Instant
+Messaging for Group Conversation," \textit{IRI '07: Proceedings of Information
+Reuse and Integration,} pp. 79-84, IEEE Computer Society, 2007.
+\bibitem{ref:goldberg} I. Goldberg, M. D. Van Gundy, B. Ustanoglu, and H. Chen,
+``Multi-Party Off-the-Record Messaging," \textit{CSS '09: Proceedings of the
+16th ACM Conference on Computer and Communication Security,} pp. 358-368, ACM,
+2009.
+\bibitem{ref:cryptocat} Cryptocat Messaging Blog
+\url{https://github.com/cryptocat/mpotr}, accessed Feb. 14, 2014.
+\bibitem{ref:axolotl} Trevor Perrin and Moxie Marlinspike,
+\url{https://github.com/trevp/axolotl/wiki/newversion}, accessed Feb. 14, 2014.
+\end{thebibliography}
+\end{document}
+%
+% ****** End of file apssamp.tex ******
