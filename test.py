@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from smmp import Organizer, Participant, BummerUndecryptable
+from smmp import Organizer, Participant, BummerUndecryptable, BadHMAC
 from random import randint
 from time import sleep
 from copy import deepcopy
@@ -39,7 +39,6 @@ p0.initState('my cool group name',
              org.state['R'],
              8,
              org.G[0],
-             org.state['v'],
              my_index=0)
 
 p1.initState('my cool group name',
@@ -48,7 +47,6 @@ p1.initState('my cool group name',
              org.state['R'],
              8,
              org.G[1],
-             org.state['v'],
              my_index=1)
 
 p2.initState('my cool group name',
@@ -57,7 +55,6 @@ p2.initState('my cool group name',
              org.state['R'],
              8,
              org.G[2],
-             org.state['v'],
              my_index=2)
 
 p3.initState('my cool group name',
@@ -66,7 +63,6 @@ p3.initState('my cool group name',
              org.state['R'],
              8,
              org.G[3],
-             org.state['v'],
              my_index=3)
 
 p4.initState('my cool group name',
@@ -75,7 +71,6 @@ p4.initState('my cool group name',
              org.state['R'],
              8,
              org.G[4],
-             org.state['v'],
              my_index=4)
 
 p5.initState('my cool group name',
@@ -84,7 +79,6 @@ p5.initState('my cool group name',
              org.state['R'],
              8,
              org.G[5],
-             org.state['v'],
              my_index=5)
 
 p6.initState('my cool group name',
@@ -93,7 +87,6 @@ p6.initState('my cool group name',
              org.state['R'],
              8,
              org.G[6],
-             org.state['v'],
              my_index=6)
 
 p7.initState('my cool group name',
@@ -102,7 +95,6 @@ p7.initState('my cool group name',
              org.state['R'],
              8,
              org.G[7],
-             org.state['v'],
              my_index=7)
 
 participants = ('p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7')
@@ -152,7 +144,7 @@ while True:
                 if try_twice == 0:
                     second_decryption = True
                     print ' ' + eval(participants[i]+'.decrypt(ciphertext)')
-            except BummerUndecryptable:
+            except (BummerUndecryptable, BadHMAC):
                 if not second_decryption:
                     print '* P'+str(i)+': Decryption Error!'
                 else:
