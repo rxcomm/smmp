@@ -7,7 +7,6 @@ import threading
 import sys
 import curses
 import gnupg
-from random import randint
 from curses.textpad import Textbox
 from random import randint
 from contextlib import contextmanager
@@ -17,29 +16,36 @@ from StringIO import StringIO
 from getpass import getpass
 
 """
-Standalone chat script using AES256 encryption with Axolotl ratchet for
-key management.
+Standalone multi-party chat script using AES256 encryption with
+SMMP ratchet for key management.
 
 Usage:
-1. Create databases using:
-     axochat.py -g
-   for both nicks in the conversation
+1. Start the chat script with
+      ./smmpchat.py
+   One person will need to serve as Organizer. Once key-agreement
+   has been reached the Organizer role is abandoned, and all users
+   are peers.
 
-2. One side starts the server with:
-     axochat.py -s
+2. All exchange of data during the key-agreement phase may be done
+   over an insecure medium.
 
-3. The other side connects the client to the server with:
-     axochat.py -c
+3. .quit at the chat prompt will quit (don't forget the "dot")
 
-4. .quit at the chat prompt will quit (don't forget the "dot")
+4. If you lose synchronization with a user (Undecryptable message error),
+   hit <RETURN> and the system should re-sync you. You can also resync
+   by typing .resync at the chat prompt.
+
+5. If you receive a Bad HMAC error, either 1) you are badly out of sync
+   and will need to perform a new key-agreement step, or 2) Somebody
+   else is spamming your port with garbage packets. Neither is good.
+
+6. If you have the means to distribute keys securely to all users, you can
+   use the gendata.py utility to generate a keyset and skip the formal
+   key agreement process.
 
 Port 50000 is the default port, but you can choose your own port as well.
 
-Be sure to edit the getPasswd() method to return your password. You can
-hard code it or get it from e.g. a keyring. It just has to match the password
-you used when creating the database.
-
-Axochat requires the Axolotl module at https://github.com/rxcomm/pyaxo
+smmpchat requires the SMMP module.
 
 Copyright (C) 2014 by David R. Andersen <k0rx@RXcomm.net>
 

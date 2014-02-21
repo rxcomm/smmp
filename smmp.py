@@ -5,7 +5,6 @@ import hmac
 import gnupg
 import os
 import sys
-from random import randint
 from time import time, sleep
 from passlib.utils.pbkdf2 import pbkdf2
 from curve25519 import keys
