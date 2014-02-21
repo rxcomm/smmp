@@ -269,7 +269,7 @@ class Participant:
             self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
             self.state['NHK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
             self.state['MK'] = pbkdf2(self.state['RK'], b'\x03', 10, prf='hmac-sha256')
-            return 'Ratchet resync message received - System resynced!'
+            return 'Ratchet resync message received - System resynced!\n'
 
 class BummerUndecryptable(Exception):
     def __init__(self):
