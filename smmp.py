@@ -17,7 +17,7 @@ GPGBINARY = 'gpg'
 gpg = gnupg.GPG(gnupghome=user_path+'/.axolotl', gpgbinary=GPGBINARY, keyring=KEYRING,
                 secret_keyring=SECRET_KEYRING, options=['--throw-keyids',
                 '--personal-digest-preferences=sha256','--s2k-digest-algo=sha256'])
-gpg.encoding = 'utf-8'
+gpg.encoding = 'latin-1'
 
 class Organizer:
 
@@ -225,7 +225,7 @@ class Participant:
     def resyncSend(self, sock):
         count = 0
         while count < self.state['my_index'] + 1:
-            sleep(0.25)
+            sleep(0.5)
             if not self.resync_required:
                 break
             count += 1
@@ -251,7 +251,8 @@ class Participant:
             self.state['MK'] = MK
             self.state['R'] = R
             sock.send(msg1 + mac + 'EOP')
-        return 'Resync completed'
+            return 'Resync sent'
+        return 'Resync send message aborted'
 
     def resyncReceive(self, ciphertext):
         self.resync_required = False
