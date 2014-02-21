@@ -299,7 +299,8 @@ $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
 It may be necessary at some point to send housekeeping messages. This section
 describes procedures to be followed in this case.
 
-\subsubsection{\label{sec:sendresync}Resynchronizing the Ratchet State}
+\subsubsection{\label{sec:sendresync}Resynchronizing the Ratchet State:
+resync\_required = True}
 When the resync\_required flag is set to \textit{True}, the ratchet state is
 unsynchronized, and decrypting further conversation messages is impossible.
 A participant wishing to correct this situation should follow the following
@@ -319,6 +320,7 @@ step.
 \item Participant $P_j$ broadcasts $c$ to all participants $P_i$.
 \item Participant $P_j$ updates his/her ratchet state
 $\mathcal{\hat{A}}_j$ as follows:\\
+$v = v^{new}$, \\
 $\{R_i\} = \{ \mathrm{hash}(v \, || \, i)\}$, \\
 $\mathrm{RK} = \mathrm{hash}(\oplus_i \, R_i \, || \, \mathrm{ECDH}(v, \oplus_i
 \, R_i))$, \\
