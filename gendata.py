@@ -42,14 +42,8 @@ def getPass(message):
     return passphrase
 
 if __name__ == '__main__':
-    file_name = raw_input('Enter root filename to save output data: ')
-    ans = raw_input('Use the same passphrase for all files? Y/n ')
-    if ans != 'n' and ans != 'N':
-        passphrase_multi = False
-        passphrase = getPass('What is the passphrase for the files: ')
-        passphrase_multi = False
-    else:
-        passphrase_multi = True
+    file_name = raw_input('Enter filename to save output data: ')
+    passphrase = getPass('What is the passphrase for the file: ')
     num_users = int(raw_input('Enter the number of users in the group: '))
     group_name = raw_input('Enter the group name: ')
     MK, MKP = genKey()
@@ -60,17 +54,13 @@ if __name__ == '__main__':
     R = {}
     for i in range(num_users):
         R[i], r = genKey()
-    for i in range(num_users):
-        if passphrase_multi:
-            passphrase = getPass('What is the passphrase for '+file_name+str(i)+'.dat: ')
-        with encFile(file_name + str(i) + '.dat', passphrase) as f:
-            f.write(binascii.b2a_base64(HK))
-            f.write(binascii.b2a_base64(MK))
-            f.write(binascii.b2a_base64(NHK))
-            f.write(binascii.b2a_base64(RK))
-            f.write(binascii.b2a_base64(v))
-            f.write(group_name+'\n')
-            f.write(str(i)+'\n')
-            f.write(str(num_users)+'\n')
-            for i in range(num_users):
-                f.write(binascii.b2a_base64(R[i]))
+    with encFile(file_name, passphrase) as f:
+        f.write(binascii.b2a_base64(HK))
+        f.write(binascii.b2a_base64(MK))
+        f.write(binascii.b2a_base64(NHK))
+        f.write(binascii.b2a_base64(RK))
+        f.write(binascii.b2a_base64(v))
+        f.write(group_name+'\n')
+        f.write('0'+'\n')
+        for i in range(num_users):
+            f.write(binascii.b2a_base64(R[i]))

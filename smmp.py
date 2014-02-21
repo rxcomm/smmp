@@ -67,7 +67,7 @@ class Organizer:
         mkey = hashlib.sha256(mkey).digest()
         self.G = {}
         for i in range(self.group_size):
-            self.G[i] = '\x00' * 32 # initialize g strings
+            self.G[i] = self.genDH(self.state['w'], ratchetKeys[i])# initialize G strings ;-)
         for i in range(self.group_size):
             for j in range(self.group_size):
                 if i != j:
@@ -120,7 +120,9 @@ class Participant:
 
         self.group_size = len(group_ratchetKeys)
         mkey = hashlib.sha256(self.strxor(self.tripleDH(self.identityKey, self.handshakeKey,
-                                  group_identityPKey, group_handshakePKey), G)).digest()
+                              group_identityPKey, group_handshakePKey),
+                              self.strxor(G, self.genDH(self.ratchetKey,
+                              group_handshakePKey)))).digest()
         RK = pbkdf2(mkey, b'\x00', 10, prf='hmac-sha256')
         HK = pbkdf2(mkey, b'\x01', 10, prf='hmac-sha256')
         NHK = pbkdf2(mkey, b'\x02', 10, prf='hmac-sha256')

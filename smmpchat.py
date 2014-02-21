@@ -307,8 +307,6 @@ def saveState(mypart):
         f.write(binascii.b2a_base64(mypart.state['RK']))
         f.write(binascii.b2a_base64(mypart.state['v']))
         f.write(mypart.state['group_name']+'\n')
-        f.write(str(mypart.state['my_index'])+'\n')
-        f.write(str(mypart.group_size)+'\n')
         resync_required = '1' if mypart.resync_required else '0'
         f.write(resync_required+'\n')
         for key, item in mypart.state['R'].iteritems():
@@ -326,13 +324,14 @@ def loadState(mypart):
         mypart.state['RK'] = binascii.a2b_base64(data_list[3])
         mypart.state['v'] = binascii.a2b_base64(data_list[4])
         mypart.state['group_name'] = data_list[5]
-        mypart.state['my_index'] = int(data_list[6])
-        mypart.group_size = int(data_list[7])
-        resync_required = data_list[8]
+        resync_required = data_list[6]
         mypart.resync_required = True if resync_required == '1' else False
         mypart.state['R'] = {}
-        for i in range(mypart.group_size):
-            mypart.state['R'][i] = binascii.a2b_base64(data_list[9+i])
+        for i in range(len(data_list[7:])):
+            mypart.state['R'][i] = binascii.a2b_base64(data_list[7+i])
+        mypart.group_size = len(mypart.state['R'])
+        mypart.state['my_index'] = int(raw_input('Input your participant index number: '))
+
 
 
 
@@ -387,13 +386,11 @@ if __name__ == '__main__':
                 userrtkeylist[0] = mypart.ratchetPKey
                 org.initState(group_name, useridkeylist, userhskeylist, userrtkeylist, 0)
                 print 'The following items can be passed publicly to all participants'
-                print 'The public group identity key: '+binascii.b2a_base64(org.state['pU'])
-                print 'The public group handshake key: '+binascii.b2a_base64(org.state['pW'])
+                print 'The public group identity key: '+binascii.b2a_base64(org.state['pU']).strip()
+                print 'The public group handshake key: '+binascii.b2a_base64(org.state['pW']).strip()
                 print 'The participant public ratchet keys are:'
                 for key, item in org.state['R'].iteritems():
                     print 'Participant '+str(key)+' public ratchet key: '+binascii.b2a_base64(item).strip()
-                print 'If you trust all users, G may be passed insecurely to all users. Otherwise,'
-                print 'the G value for each user should be passed securely to that user'
                 for key, item in org.G.iteritems():
                     if key != 0:
                         print 'G for user '+str(key)+' is: '+ binascii.b2a_base64(item).strip()
