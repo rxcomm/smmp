@@ -164,8 +164,11 @@ class Participant:
 
     def dec(self, key, encrypted):
         key = binascii.hexlify(key)
-        msg = gpg.decrypt(binascii.unhexlify('8c0d04090308') + encrypted,
-                          passphrase=key, always_trust=True)
+        try:
+            msg = gpg.decrypt(binascii.unhexlify('8c0d04090308') + encrypted,
+                              passphrase=key, always_trust=True)
+        except ValueError:
+            raise BummerUndecryptable
         return msg.data
 
     def decrypt(self, msg):
@@ -254,7 +257,7 @@ class Participant:
         self.resync_required = False
         try:
             plaintext = self.dec(self.state['v'], ciphertext)
-        except (DecodeError, ValueError, UnicodeDecodeError):
+        except (DecodeError, ValueError):
             raise BummerUndecryptable
         if plaintext[:1] != '\x00' or len(plaintext[1:]) != 32 or ciphertext is None:
             raise BummerUndecryptable

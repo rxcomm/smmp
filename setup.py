@@ -12,5 +12,5 @@ setup(name='smmp',
       author='David R. Andersen',
       url='none',
       py_modules=['smmp'],
-      install_requires=['python-gnupg >= 0.3.5', 'passlib >= 1.6.1'],
+      install_requires=['python-gnupg >= 0.3.6', 'passlib >= 1.6.1'],
      )
