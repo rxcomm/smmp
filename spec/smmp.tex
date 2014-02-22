@@ -29,7 +29,7 @@ floatfix,
 
 \begin{document}
 
-\preprint{Version 0.3}
+\preprint{Version 0.3.2}
 
 \title{SMMP: A Secure Multi-Party Messaging Protocol}% Force line breaks with \\
 
@@ -75,15 +75,16 @@ confirm that they were receiving unmodified copies of all messages.
 A further attempt to solve this problem\cite{ref:goldberg} was incomplete
 because of the lack of a simple key-agreement strategy. Work on the problem
 continues to date, most notably with\cite{ref:cryptocat}, however the
-key-agreement problem remains unsolved.
+key-agreement problem remains unsolved. Liu \textit{et.al.}\cite{ref:liu}
+recently improved the GOTR/mpOTR key agreement mechanism.
 
 In this paper, we describe a novel secure multi-party messaging protocol with a
 simple key-agreement algorithm that provides perfect forward secrecy (PFS),
 perfect future secrecy (PFuS),
 and plausible deniability (PD) for participants in a group conversation. Our protocol
 is a peer-to-peer protocol, whereby each
-participant periodically contributes
-key material to the group key set. The group is
+participant (peer) contributes new
+key material to the group key set with each message sent. The group is
 initially constituted by an Organizer. Following the formation of the group, the
 Organizer role is abandoned and the initial Organizer assumes a peer role, the
 same as all other Participants.
@@ -92,7 +93,8 @@ same as all other Participants.
 \begin{itemize}
 \item Each group key agreement is facilitated by an Organizer, who is also
 Participant $P_0$. Following the key agreement stage, the Organizer is no longer
-required and the Participant $P_0$ role is that of a peer like any other
+required. The Organizer data is securely deleted and the Participant
+$P_0$ role is that of a peer like any other
 participant.
 \item Elliptic curve Diffie-Hellman key operations are performed on curve25519
 with 32 byte
@@ -236,7 +238,7 @@ they do not match, he/she raises a Bad\_HMAC exception and goes no further.
 and obtains $q \, || \, R_q^{new} = d(\mathrm{HK}, c_h)$ and $m = d(\mathrm{mk},
 c_m)$. If either of these operations fail, he/she raises a Message\_Undecryptable
 exception, sets the resync\_required flag \textit{True},
-and passes $c^\prime$ to the message-received housekeeping routine described in
+and passes $c^\prime$ and control to the message-received housekeeping routine described in
 Section \ref{sec:receivehousekeeping}.
 \item Participant $P_j$ sets $R_q = R_q^{new}$.
 \item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_i$ as
@@ -248,6 +250,27 @@ $\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
 
 \end{enumerate}
+
+\section{\label{sec:im}One-On-One Messaging Within SMMP}
+Participants in the group may exchange one-on-one messages with other group
+participants using the group infrastructure. If participant $P_i$ wishes to
+message participant $P_j$, he/she proceeds as follows:
+\begin{enumerate}
+\item Participant $P_i$ forms a message $m$.
+\item If this is the first private message with $P_j$, participant $P_i$ makes
+a copy of his current private ratchet key $r_i$
+($s_i$) as well as participant $P_j$'s current public ratchet key $R_j$ ($S_j$).
+If this is not the first private message $P_i$ has exchanged with $P_j$,
+$s_i$ and $S_j$ already exist.
+\item Participant $P_i$ generates a new one-on-one ratchet key $(t_i, T_i)$.
+\item Participant $P_i$ forms preliminary ciphertexts $c_h = e(v, S_j), 0\mathrm{x}01
+\, || \, T_i)$ and $c_m = e(\mathrm{ECDH}(s_i, S_j), m)$.
+\item Participant $P_i$ forms $c^\prime = c_h \, || \, c_m$ and computes $c_{hmac} =
+\mathrm{hmac}(v, c^\prime)$.
+\item Participant $P_i$ sends $c = c^\prime \, || \, c_{hmac}$ to $P_j$.
+\item Decryption will need to be added to the housekeeping section.
+\end{enumerate}
+
 \section{\label{sec:housekeeping}Protocol Housekeeping}
 Here we list several protocol housekeeping operations that may be necessary.
 The list may be extended if other useful operations are identified.
@@ -255,7 +278,7 @@ The list may be extended if other useful operations are identified.
 \subsection{\label{sec:receivehousekeeping}Message Received Housekeeping}
 Housekeeping messages will be routed based on a one-byte header prepended to the
 payload of the housekeeping message. The byte values and their corresponding
-housekeeping tasks are (currently there is only 1): \\
+housekeeping tasks are (currently there are 2): \\
 
 \begin{centering}
 \begin{tabular}{|c|c|c|}
@@ -263,6 +286,7 @@ housekeeping tasks are (currently there is only 1): \\
 Byte Value & Housekeeping Task & Location \\
 \hline
 $0\mathrm{x}00$ & Resynchronizing the Ratchet State  & Section \ref{sec:receiveresync}\\
+$0\mathrm{x}01$ & Instant Messaging Within SMMP & Section \ref{sec:imdecrypt}\\
 \hline
 \end{tabular} \\
 \end{centering}
@@ -295,6 +319,11 @@ $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
 \item Participant $P_j$ sets his resync\_required flag to \textit{False}.
 \end{enumerate}
 
+\subsubsection{\label{sec:imdecrypt}Decrypting Private Messages Within SMMP: $b =
+0\mathrm{x}01$}
+
+tbd...
+
 \subsection{\label{sec:sendhousekeeping}Message Send Housekeeping}
 It may be necessary at some point to send housekeeping messages. This section
 describes procedures to be followed in this case.
@@ -304,14 +333,14 @@ resync\_required = True}
 When the resync\_required flag is set to \textit{True}, the ratchet state is
 unsynchronized, and decrypting further conversation messages is impossible.
 A participant wishing to correct this situation should follow the following
-procedures:
+procedures (this may be automated):
 \begin{enumerate}
 \item Participant $P_j$ generates a new group private ratchet key $v^{new}$.
 \item participant $P_j$ computes preliminary ciphertext $c^\prime = e(v, 0\mathrm{x}00
 \, || \, v^{new})$.
 \item Participant $P_j$ computes hmac $c_{hmac} = \mathrm{hmac}(v, c^\prime)$.
 \item Participant $P_j$ forms $c = c^\prime \, || \, c_{hmac}$.
-\item Participant $P_j$ delays according to a random backoff algorithm
+\item Participant $P_j$ delays according to a backoff algorithm
 that should be transport-specific and is unspecified here.
 \item Participant $P_j$ tests resync\_required to see if it is still
 \textit{True}. If not, a resynchronization message was received and no further
@@ -328,21 +357,106 @@ $\mathrm{HK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
 $\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
 \item Participant $P_j$ sets his resync\_required flag to \textit{False}.
-
 \end{enumerate}
+
+\section{\label{sec:discussion}Discussion}
+Various protocols exist for facilitating secure one-on-one messaging, including
+Off the Record Messaging (OTR)\cite{ref:otr1,ref:otr2,ref:otr3,ref:otr}, Silent Circle Instant Messaging Protocol
+(SCIMP)\cite{ref:scimp}, and Axolotl\cite{ref:axolotl}. Each of these protocols
+provides security through the use of ephemeral keys for symmetric encryption.
+The method of generating and exchanging these keys varies widely between the
+three protocols. All of the protocols provide forward
+secrecy. Some also provide plausible deniability. And one (Axolotl) also
+provides perfect future secrecy (compromise of the current keyset does not cause
+compromise of future keysets). However, each of these protocols is limited to
+the one-on-one messaging case.
+
+OTR was the first such protocol. It is based on an Advertise $\rightarrow$
+Acknowledge $\rightarrow$ Use method for key updating. OTR has been widely used
+for secure instant messaging and applications containing OTR plugins are
+available for XMPP, IRC, and other messaging systems.
+
+SCIMP is a proprietary protocol developed by Silent Circle as their solution for
+providing secure communications as part of their product line. The key
+advancement algorithm for SCIMP is essentially a hash. Each symmetric encryption
+key is hashed to obtain the key for the next ratchet step. As a result, a key
+compromise at any point will permit an attacker to follow the conversation from
+that point on.
+
+Axolotl is the first one-on-one messaging protocol to provide future secrecy. In
+this protocol, randomly-generated key data is mixed in to the ratchet state with
+each message send/receive operation, so that a compromised keyset permits an
+attacker access to only one message. Following the conversation requires a new
+key compromise with each message sent.
+
+The first proposal for a secure group $(N \ge 3)$ messaging protocol was that of
+Bian \textit{et.al.}\cite{ref:bian} [Group Off The Record (GOTR)]. The protocol is based on a virtual server,
+a user that sets up a secure one-on-on channel with each member of the group.
+When members of the group who are not the virtual server wish to communicate
+with each other, they relay their messages through the virtual server. The
+problem with this approach is that there is no way for users to verify that they
+are getting a complete transcript of the group conversation. Trust in the
+virtual server is required, and a compromise of the virtual server would permit
+an attacker to follow the entire conversation.
+
+A second proposal for a secure group messaging protocol was made by Goldberg
+\textit{et.al.}\cite{ref:goldberg} [multi-party Off The Record (mpOTR)].
+While this protocol solved some of the
+problems associate with the Bian messaging scheme, it did not give a complete
+key-agreement algorithm. Thus far, to our knowledge, the key-agreement problem
+has not been solved. As a result, this protocol has never been successfully
+implemented.
+
+An improvement of the GOTR/mpOTR protocol was made by Liu
+\textit{et.al}\cite{ref:liu}.
+
+In this paper, we have presented a secure, peer-to-peer multi-party messaging protocol
+(SMMP) that provides PFS, PFuS, and PD, and has a simple key agreement
+algorithm. The protocol allows all group members to confirm that they are
+receiving a complete transcript of the group conversation, and provides a
+robust mechanism for resynchronization of the ratchet state if messages are lost
+because of failure of the underlying transport mechanism.
 
 \begin{thebibliography}{99}
 \bibitem{ref:bian} J. Bian, R. Seker, and U. Topaloglu ``Off-the-Record Instant
 Messaging for Group Conversation," \textit{IRI '07: Proceedings of Information
 Reuse and Integration,} pp. 79-84, IEEE Computer Society, 2007.
+
 \bibitem{ref:goldberg} I. Goldberg, M. D. Van Gundy, B. Ustanoglu, and H. Chen,
 ``Multi-Party Off-the-Record Messaging," \textit{CSS '09: Proceedings of the
 16th ACM Conference on Computer and Communication Security,} pp. 358-368, ACM,
 2009.
+
 \bibitem{ref:cryptocat} Cryptocat Messaging Blog
-\url{https://github.com/cryptocat/mpotr}, accessed Feb. 14, 2014.
-\bibitem{ref:axolotl} Trevor Perrin and Moxie Marlinspike,
-\url{https://github.com/trevp/axolotl/wiki/newversion}, accessed Feb. 14, 2014.
+\url{https://github.com/cryptocat/mpotr}, accessed Feb. 22, 2014.
+
+\bibitem{ref:liu} H. Liu, E. Y. Vasserman, and N. Hopper, ``Improved Group
+Off-the-Record Messaging," \textit{WPES'13: Proceedings of the ACM Workshop on
+Privacy in the Electronic Society,} ACM, 2013.
+
+\bibitem{ref:otr} ``Off the Record Messaging",
+\url{https://otr.cypherpunks.ca/}, accessed Feb. 22, 2014.
+
+\bibitem{ref:otr1} N. Borisov, I. Goldberg, and E. Brewer, ``Off-the-Record
+Communication, or, Why Not To Use PGP," \textit{WPES'04: Proceedings of the
+ACM Workshop on Privacy in the Electronic Society,} ACM, 2004.
+
+\bibitem{ref:otr2} C. Alexander and I. Goldberg, ``Improved User Authentication
+in Off-The-Record Messaging," \textit{WPES'07: Proceeedings of the ACM Workshop
+on Privacy in the Electronic Society,} ACM, 2007.
+
+\bibitem{ref:otr3} R. Stedman, K. Yoshida, and I. Goldberg, ``A User Study of
+Off-The-Record Messaging," \textit{SOUPS 2008: Symposium on Usable Privacy and
+Security}, pp. 1-10, SOUPS, 2008.
+
+\bibitem{ref:scimp}  Vinnie Moscaritolo, Gary Belvin, and Phil Zimmermann,
+``Silent Circle Instant Messaging Protocol Protocol Specification",
+\url{https://silentcircle.com/static/download/SCIMP%20paper.pdf}, accessed Feb.
+22, 2014.
+
+\bibitem{ref:axolotl} Trevor Perrin and Moxie Marlinspike, ``Axolotl Ratchet",
+\url{https://github.com/trevp/axolotl/wiki/newversion}, accessed Feb. 22, 2014.
+
 \end{thebibliography}
 \end{document}
 %
