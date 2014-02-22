@@ -225,7 +225,7 @@ def receiveThread(sock, mypart, stdscr, input_win, output_win, title_win):
                             output_win.addstr(msg, curses.color_pair(1))
                         else:
                             output_win.addstr(msg)
-                    except BummerUndecryptable:
+                    except BummerUndecryptable, ValueErrorr:
                         mypart.resync_required = True
                         output_win.addstr('Undecryptable message\n', curses.color_pair(1))
                     except BadHMAC:
