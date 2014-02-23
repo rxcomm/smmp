@@ -57,9 +57,9 @@ class Organizer:
 
         self.L = {}
         for i in range(self.group_size):
-            self.L[i] = hashlib.sha256(self.tripleDH(self.state['u'], self.state['w'],
-                                       identityKeys[i],
-                                       handshakeKeys[i])).digest()
+            self.L[i] = self.tripleDH(self.state['u'], self.state['w'],
+                                      identityKeys[i],
+                                      handshakeKeys[i])
         self.G = {}
         for i in range(self.group_size):
             self.G[i] = self.genDH(self.state['w'], ratchetKeys[i])# initialize G strings ;-)
@@ -114,9 +114,8 @@ class Participant:
         """
 
         self.group_size = len(group_ratchetKeys)
-        mkey = hashlib.sha256(self.strxor(hashlib.sha256(self.tripleDH(self.identityKey,
-                              self.handshakeKey,
-                              group_identityPKey, group_handshakePKey)).digest(),
+        mkey = hashlib.sha256(self.strxor(self.tripleDH(self.identityKey, self.handshakeKey,
+                              group_identityPKey, group_handshakePKey),
                               self.strxor(G, self.genDH(self.ratchetKey,
                               group_handshakePKey)))).digest()
         RK = pbkdf2(mkey, b'\x00', 10, prf='hmac-sha256')

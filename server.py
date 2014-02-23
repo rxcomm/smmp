@@ -9,24 +9,9 @@ import socket
 import threading
 import sys
 from time import time
-from random import randint
 
 HOST = '0.0.0.0'
 PORT = 50000
-while True:
-    try:
-        PORT = raw_input('TCP port (1 for random choice, 50000 is default): ')
-        PORT = int(PORT)
-        break
-    except ValueError:
-        PORT = 50000
-        break
-if PORT >= 1025 and PORT <= 65535:
-    pass
-elif PORT == 1:
-    PORT = 1025 + randint(0, 64510)
-    print 'PORT is ' + str(PORT)
-
 BACKLOG = 10
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
