@@ -36,7 +36,7 @@ org.initState('my cool group name',
 p0.initState('my cool group name',
              org.state['pU'],
              org.state['pW'],
-             org.state['R'],
+             deepcopy(org.state['R']),
              8,
              org.G[0],
              my_index=0)
@@ -44,7 +44,7 @@ p0.initState('my cool group name',
 p1.initState('my cool group name',
              org.state['pU'],
              org.state['pW'],
-             org.state['R'],
+             deepcopy(org.state['R']),
              8,
              org.G[1],
              my_index=1)
@@ -52,7 +52,7 @@ p1.initState('my cool group name',
 p2.initState('my cool group name',
              org.state['pU'],
              org.state['pW'],
-             org.state['R'],
+             deepcopy(org.state['R']),
              8,
              org.G[2],
              my_index=2)
@@ -60,7 +60,7 @@ p2.initState('my cool group name',
 p3.initState('my cool group name',
              org.state['pU'],
              org.state['pW'],
-             org.state['R'],
+             deepcopy(org.state['R']),
              8,
              org.G[3],
              my_index=3)
@@ -68,7 +68,7 @@ p3.initState('my cool group name',
 p4.initState('my cool group name',
              org.state['pU'],
              org.state['pW'],
-             org.state['R'],
+             deepcopy(org.state['R']),
              8,
              org.G[4],
              my_index=4)
@@ -76,7 +76,7 @@ p4.initState('my cool group name',
 p5.initState('my cool group name',
              org.state['pU'],
              org.state['pW'],
-             org.state['R'],
+             deepcopy(org.state['R']),
              8,
              org.G[5],
              my_index=5)
@@ -84,7 +84,7 @@ p5.initState('my cool group name',
 p6.initState('my cool group name',
              org.state['pU'],
              org.state['pW'],
-             org.state['R'],
+             deepcopy(org.state['R']),
              8,
              org.G[6],
              my_index=6)
@@ -92,7 +92,7 @@ p6.initState('my cool group name',
 p7.initState('my cool group name',
              org.state['pU'],
              org.state['pW'],
-             org.state['R'],
+             deepcopy(org.state['R']),
              8,
              org.G[7],
              my_index=7)
@@ -133,17 +133,17 @@ while True:
         print
         print '\x1b[;32m Message encrypted by P'+str(encrypter)+'\x1b[0m'
         print '--------------------------------------------------'
-        command = 'ciphertext = p'+str(encrypter)+'.encrypt("This message was decrypted successfully")'
+        command = 'ciphertexts = p'+str(encrypter)+'.encrypt("This message was decrypted successfully")'
         exec(command)
 
         for i in range(len(participants)):
             try_twice = randint(0,9)
             second_decryption = False
             try:
-                print 'P'+str(i)+': '+eval(participants[i]+'.decrypt(ciphertext)')
+                print 'P'+str(i)+': '+eval(participants[i]+'.decrypt(ciphertexts[i])')
                 if try_twice == 0:
                     second_decryption = True
-                    print ' ' + eval(participants[i]+'.decrypt(ciphertext)')
+                    print ' ' + eval(participants[i]+'.decrypt(ciphertexts[i])')
             except (BummerUndecryptable, BadHMAC):
                 if not second_decryption:
                     print '* P'+str(i)+': Decryption Error!'

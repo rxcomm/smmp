@@ -46,7 +46,7 @@ class Organizer:
         pubkey = key.get_public().serialize()
         return privkey, pubkey
 
-    def initState(self, group_name, identityKeys, handshakeKeys, ratchetKeys, my_index=2):
+    def initState(self, group_name, identityKeys, handshakeKeys, ratchetKeys, my_index=0):
         """
         Here group_name is the group name, identityKeys, handshakeKeys, and ratchetKeys
         are dictionaries with key:value pairs equal to the participant index number
@@ -62,7 +62,7 @@ class Organizer:
                                       handshakeKeys[i])
         self.G = {}
         for i in range(self.group_size):
-            self.G[i] = self.genDH(self.state['w'], ratchetKeys[i])# initialize G strings ;-)
+            self.G[i] = self.genDH(self.state['w'], ratchetKeys[i]) # initialize G strings ;-)
         for i in range(self.group_size):
             for j in range(self.group_size):
                 if i != j:
@@ -106,7 +106,7 @@ class Participant:
         pubkey = key.get_public().serialize()
         return privkey, pubkey
 
-    def initState(self, group_name, group_identityPKey, group_handshakePKey, group_ratchetKeys, group_size, G, my_index=1):
+    def initState(self, group_name, group_identityPKey, group_handshakePKey, group_ratchetKeys, group_size, G, my_index=0):
         """
         Here group_name is the group name, identityKeys, handshakeKeys, and ratchetKeys
         are dictionaries with key:value pairs equal to the participant index number
@@ -123,7 +123,6 @@ class Participant:
         NHK = pbkdf2(mkey, b'\x02', 10, prf='hmac-sha256')
         MK = pbkdf2(mkey, b'\x03', 10, prf='hmac-sha256')
         v = pbkdf2(mkey, b'\x04', 10, prf='hmac-sha256')
-        DHR = None
 
         self.state = \
                { 'group_name': self.group_name,
@@ -138,12 +137,21 @@ class Participant:
 
     def encrypt(self, plaintext):
         rnew, Rnew = self.genKey()
-        msg1 = self.enc(self.state['HK'], str(self.state['my_index']).zfill(3) + Rnew)
-        msg2 = self.enc(self.state['MK'], plaintext)
-        pad_length = 103 - len(msg1)
-        pad = os.urandom(pad_length - 1) + chr(pad_length)
-        msg = msg1 + pad + msg2
-        mac = hmac.new(self.state['v'], msg, hashlib.sha256).digest()
+        messages = {}
+        for i in range(self.group_size):
+            if i != self.state['my_index']:
+                otp = hashlib.sha256(self.genDH(self.ratchetKey, self.state['R'][i])).digest()
+                encrypted_Rnew = self.strxor(Rnew, otp)
+                msg1 = self.enc(self.state['HK'], str(self.state['my_index']).zfill(3) + encrypted_Rnew)
+                msg2 = self.enc(self.state['MK'], plaintext)
+                pad_length = 103 - len(msg1)
+                pad = os.urandom(pad_length - 1) + chr(pad_length)
+                msg = msg1 + pad + msg2
+                mac = hmac.new(self.state['v'], msg, hashlib.sha256).digest()
+                messages[i] = msg + mac
+            else:
+                messages[i] = ''
+        self.ratchetKey = rnew
         self.state['R'][self.state['my_index']] = Rnew
         DHR = '\x00' * 32
         for i in range(self.group_size):
@@ -154,7 +162,7 @@ class Participant:
         self.state['HK'] = self.state['NHK']
         self.state['NHK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
         self.state['MK'] = pbkdf2(self.state['RK'], b'\x03', 10, prf='hmac-sha256')
-        return msg + mac
+        return messages
 
     def enc(self, key, plaintext):
         key = binascii.hexlify(key)
@@ -182,7 +190,9 @@ class Participant:
         if not header or header == '':
             return self.resyncReceive(msg[:-32])
         Pnum = int(header[:3])
-        self.state['R'][Pnum] = header[3:]
+        otp = hashlib.sha256(self.genDH(self.ratchetKey, self.state['R'][Pnum])).digest()
+        self.state['R'][Pnum] = self.strxor(header[3:], otp)
+
         body = self.dec(self.state['MK'], msg[103:-32])
         if not body or body == '':
             raise BummerUndecryptable
