@@ -286,7 +286,12 @@ def chatThread(sock, mypart, myname):
                 screen_needs_update = True
                 data = data.replace('\n', '') + '\n'
                 try:
-                    sock.send(mypart.encrypt(data) + 'EOP')
+                    ciphertexts = mypart.encrypt(data)
+                    if type(ciphertexts) is dict:
+                        for i, message in ciphertexts.iteritems():
+                            sock.send(message + 'EOP')
+                    else:
+                        sock.send(ciphertexts + 'EOP')
                 except socket.error:
                     input_win.addstr('Disconnected')
                     input_win.refresh()
@@ -315,8 +320,10 @@ def saveState(mypart):
         f.write(binascii.b2a_base64(mypart.state['RK']))
         f.write(binascii.b2a_base64(mypart.state['v']))
         f.write(mypart.state['group_name']+'\n')
+        f.write(str(mypart.state['my_index'])+'\n')
         resync_required = '1' if mypart.resync_required else '0'
         f.write(resync_required+'\n')
+        f.write(binascii.b2a_base64(mypart.ratchetKey))
         for key, item in mypart.state['R'].iteritems():
             f.write(binascii.b2a_base64(item))
 
@@ -332,13 +339,14 @@ def loadState(mypart):
         mypart.state['RK'] = binascii.a2b_base64(data_list[3])
         mypart.state['v'] = binascii.a2b_base64(data_list[4])
         mypart.state['group_name'] = data_list[5]
-        resync_required = data_list[6]
+        mypart.state['my_index'] = int(data_list[6])
+        resync_required = data_list[7]
         mypart.resync_required = True if resync_required == '1' else False
+        mypart.ratchetKey = binascii.a2b_base64(data_list[8])
         mypart.state['R'] = {}
-        for i in range(len(data_list[7:])):
-            mypart.state['R'][i] = binascii.a2b_base64(data_list[7+i])
+        for i in range(len(data_list[9:])):
+            mypart.state['R'][i] = binascii.a2b_base64(data_list[9+i])
         mypart.group_size = len(mypart.state['R'])
-        mypart.state['my_index'] = int(raw_input('Input your participant index number: '))
 
 
 

@@ -140,10 +140,10 @@ while True:
             try_twice = randint(0,9)
             second_decryption = False
             try:
-                print 'P'+str(i)+': '+eval(participants[i]+'.decrypt(ciphertexts[i])')
+                print 'P'+str(i)+': '+eval(participants[i]+'.decrypt(ciphertexts[i][3:])')
                 if try_twice == 0:
                     second_decryption = True
-                    print ' ' + eval(participants[i]+'.decrypt(ciphertexts[i])')
+                    print ' ' + eval(participants[i]+'.decrypt(ciphertexts[i][3:])')
             except (BummerUndecryptable, BadHMAC):
                 if not second_decryption:
                     print '* P'+str(i)+': Decryption Error!'

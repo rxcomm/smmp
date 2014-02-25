@@ -42,7 +42,7 @@ def getPass(message):
     return passphrase
 
 if __name__ == '__main__':
-    file_name = raw_input('Enter filename to save output data: ')
+    file_name = raw_input('Enter the base filename to save output data: ')
     passphrase = getPass('What is the passphrase for the file: ')
     num_users = int(raw_input('Enter the number of users in the group: '))
     group_name = raw_input('Enter the group name: ')
@@ -52,15 +52,19 @@ if __name__ == '__main__':
     RK, RKP = genKey()
     v, V = genKey()
     R = {}
+    r = {}
     for i in range(num_users):
-        R[i], r = genKey()
-    with encFile(file_name, passphrase) as f:
-        f.write(binascii.b2a_base64(HK))
-        f.write(binascii.b2a_base64(MK))
-        f.write(binascii.b2a_base64(NHK))
-        f.write(binascii.b2a_base64(RK))
-        f.write(binascii.b2a_base64(v))
-        f.write(group_name+'\n')
-        f.write('0'+'\n')
-        for i in range(num_users):
-            f.write(binascii.b2a_base64(R[i]))
+        r[i], R[i] = genKey()
+    for i in range(num_users):
+        with encFile(file_name +str(i) + '.dat', passphrase) as f:
+            f.write(binascii.b2a_base64(HK))
+            f.write(binascii.b2a_base64(MK))
+            f.write(binascii.b2a_base64(NHK))
+            f.write(binascii.b2a_base64(RK))
+            f.write(binascii.b2a_base64(v))
+            f.write(group_name+'\n')
+            f.write(str(i) + '\n')
+            f.write('0'+'\n')
+            f.write(binascii.b2a_base64(r[i]))
+            for j in range(num_users):
+                f.write(binascii.b2a_base64(R[j]))

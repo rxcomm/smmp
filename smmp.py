@@ -148,9 +148,10 @@ class Participant:
                 pad = os.urandom(pad_length - 1) + chr(pad_length)
                 msg = msg1 + pad + msg2
                 mac = hmac.new(self.state['v'], msg, hashlib.sha256).digest()
-                messages[i] = msg + mac
+                # not part of protocol
+                messages[i] = str(i).zfill(3) + msg + mac
             else:
-                messages[i] = ''
+                messages[i] = '998'
         self.ratchetKey = rnew
         self.state['R'][self.state['my_index']] = Rnew
         DHR = '\x00' * 32
@@ -242,11 +243,16 @@ class Participant:
         msg1 = self.enc(self.state['v'], '\x00' + v)
         mac = hmac.new(self.state['v'], msg1, hashlib.sha256).digest()
         R = {}
+        r = {}
         for i in range(len(self.state['R'])):
-            R[i] = hashlib.sha256(v + str(i)).digest()
+            key = keys.Private(secret=hashlib.sha256(str(i).zfill(32)).digest())
+            r[i] = key.private
+            R[i] = key.get_public().serialize()
+        self.ratchetKey = r[self.state['my_index']]
+        self.state['R'] = R
         DHR = '\x00' * 32
         for i in range(len(self.state['R'])):
-            DHR = self.strxor(DHR, R[i])
+            DHR = self.strxor(DHR, self.state['R'][i])
         RK = hashlib.sha256(DHR + self.genDH(v, DHR)).digest()
         HK = pbkdf2(RK, b'\x01', 10, prf='hmac-sha256')
         NHK = pbkdf2(RK, b'\x02', 10, prf='hmac-sha256')
@@ -258,8 +264,7 @@ class Participant:
             self.state['HK'] = HK
             self.state['NHK'] = NHK
             self.state['MK'] = MK
-            self.state['R'] = R
-            sock.send(msg1 + mac + 'EOP')
+            sock.send('999' + msg1 + mac + 'EOP')
             return 'Resync sent'
         return 'Resync send message aborted'
 
@@ -273,8 +278,14 @@ class Participant:
             raise BummerUndecryptable
         else:
             self.state['v'] = plaintext[1:]
+            R = {}
+            r = {}
             for i in range(len(self.state['R'])):
-                self.state['R'][i] = hashlib.sha256(self.state['v'] + str(i)).digest()
+                key = keys.Private(secret=hashlib.sha256(str(i).zfill(32)).digest())
+                r[i] = key.private
+                R[i] = key.get_public().serialize()
+            self.ratchetKey = r[self.state['my_index']]
+            self.state['R'] = R
             DHR = '\x00' * 32
             for i in range(len(self.state['R'])):
                 DHR = self.strxor(DHR, self.state['R'][i])
