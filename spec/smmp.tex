@@ -29,7 +29,7 @@ floatfix,
 
 \begin{document}
 
-\preprint{Version 0.3.2}
+\preprint{Version 0.3.3}
 
 \title{SMMP: A Secure Multi-Party Messaging Protocol}% Force line breaks with \\
 
@@ -112,6 +112,64 @@ group.
 unspecified.
 \end{itemize}
 
+\section{\label{sec:background}Background}
+Various protocols exist for facilitating secure one-on-one messaging, including
+Off the Record Messaging (OTR)\cite{ref:otr1,ref:otr2,ref:otr3,ref:otr}, Silent Circle Instant Messaging Protocol
+(SCIMP)\cite{ref:scimp}, and Axolotl\cite{ref:axolotl}. Each of these protocols
+provides security through the use of ephemeral keys for symmetric encryption.
+The method of generating and exchanging these keys varies widely between the
+three protocols. All of the protocols provide forward
+secrecy. Some also provide plausible deniability. And one (Axolotl) also
+provides perfect future secrecy (compromise of the current keyset does not cause
+compromise of future keysets). However, each of these protocols is limited to
+the one-on-one messaging case.
+
+OTR was the first such protocol. It is based on an Advertise $\rightarrow$
+Acknowledge $\rightarrow$ Use method for key updating. OTR has been widely used
+for secure instant messaging and applications containing OTR plugins are
+available for XMPP, IRC, and other messaging systems.
+
+SCIMP is a proprietary protocol developed by Silent Circle as their solution for
+providing secure communications as part of their product line. The key
+advancement algorithm for SCIMP is essentially a hash. Each symmetric encryption
+key is hashed to obtain the key for the next ratchet step. As a result, a key
+compromise at any point will permit an attacker to follow the conversation from
+that point on.
+
+Axolotl is the first one-on-one messaging protocol to provide future secrecy. In
+this protocol, randomly-generated key data is mixed in to the ratchet state with
+each message send/receive operation, so that a compromised keyset permits an
+attacker access to only one message. Following the conversation requires a new
+key compromise with each message sent.
+
+The first proposal for a secure group $(N \ge 3)$ messaging protocol was that of
+Bian \textit{et.al.}\cite{ref:bian} [Group Off The Record (GOTR)]. The protocol is based on a virtual server,
+a user that sets up a secure one-on-on channel with each member of the group.
+When members of the group who are not the virtual server wish to communicate
+with each other, they relay their messages through the virtual server. The
+problem with this approach is that there is no way for users to verify that they
+are getting a complete transcript of the group conversation. Trust in the
+virtual server is required, and a compromise of the virtual server would permit
+an attacker to follow the entire conversation.
+
+A second proposal for a secure group messaging protocol was made by Goldberg
+\textit{et.al.}\cite{ref:goldberg} [multi-party Off The Record (mpOTR)].
+While this protocol solved some of the
+problems associate with the Bian messaging scheme, it did not give a complete
+key-agreement algorithm. Thus far, to our knowledge, the key-agreement problem
+has not been solved. As a result, this protocol has never been successfully
+implemented.
+
+An improvement of the GOTR/mpOTR protocol was made by Liu
+\textit{et.al}\cite{ref:liu}.
+
+In this paper, we have presented a secure, peer-to-peer multi-party messaging protocol
+(SMMP) that provides PFS, PFuS, and PD, and has a simple key agreement
+algorithm. The protocol allows all group members to confirm that they are
+receiving a complete transcript of the group conversation, and provides a
+robust mechanism for resynchronization of the ratchet state if messages are lost
+because of failure of the underlying transport mechanism.
+
 \section{\label{sec:notation}Notation}
 The following notation is used:
 \begin{itemize}
@@ -152,6 +210,8 @@ storage:
 \item NHK - the next header key
 \item mk - the message key
 \item $v$ - the group private ratchet key
+\item $r$ - the participant private ratchet key (for participant $P_j$,
+$\mathrm{ECDH}(r, X) = R_j$)
 \item $\{R_i\}$ - the set of public ratchet keys from each participant $P_i$
 \item $i$ - Participant $P_i$'s participant index number
 \item $N$ - the group size
@@ -210,21 +270,25 @@ Participants wanting to send a message will proceed as follows:
 \begin{enumerate}
 \item When a participant $P_j$ wishes to communicate with the other
 participants, he forms a message $m$.
-\item Participant $P_j$ generates a new ephemeral ratchet key $R_j^{new}$ and
-sets $R_j = R_j^{new}$.
-\item Participant $P_j$ computes preliminary ciphertexts $c_h = e(\mathrm{HK}, j
-\, || \, R_j^{new})$ and $c_m = e(\mathrm{mk}, m)$. He the forms $c^\prime = c_h
-\, || \, c_m$.
-\item Participant $P_j$ computes hmac $c_{hmac} = \mathrm{hmac}(v, c^\prime)$.
-\item Participant $P_j$ forms $c = c^\prime \, || \, c_{hmac}$.
+\item Participant $P_j$ generates a new ephemeral ratchet key
+$(r_j^{new},R_j^{new})$.
+\item For all $i \ne j$, participant $P_j$ computes the set of $N-1$ preliminary ciphertexts $c_{hi} =
+e(\mathrm{HK}, j
+\, || \, R_j^{new} \, \oplus \, \mathrm{hash}(\mathrm{ECDH}(r_j, R_i)))$ and the
+set of $N-1$ preliminary ciphertexts
+$c_{mi} = e(\mathrm{mk}, m)$.
+He the forms $c_i^\prime = c_{hi} \, || \, c_{mi}$.
+\item Participant $P_j$ computes the set of $N-1$ hmacs $c_{hmaci} = \mathrm{hmac}(v, c_i^\prime)$.
+\item Participant $P_j$ forms the set of $N-1$ ciphertexts $c_i = c_i^\prime \, || \, c_{hmaci}$.
 \item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_j$ as
 follows:\\
+$(r_i, R_i) = (r_i^{new}, R_i^{new})$, \\
 $\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v, \oplus_i
 \, R_i))$, \\
 $\mathrm{HK} = \mathrm{NHK}$, \\
 $\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
-\item Participant $P_j$ broadcasts $c$ to all participants $P_i$.
+\item Participant $P_j$ sends $c_i $ to participant $P_i$ for all participants.
 \end{enumerate}
 
 \section{\label{sec:receiving}Receiving Messages}
@@ -235,12 +299,13 @@ $c^\prime$ and $c_{hmac}$ parts.
 \item Participant $P_j$ tests if $\mathrm{hash}(v, c^\prime) = c_{hmac}$. If
 they do not match, he/she raises a Bad\_HMAC exception and goes no further.
 \item Participant $P_j$ splits $c^\prime$ into header $c_h$ and message $c_m$ components
-and obtains $q \, || \, R_q^{new} = d(\mathrm{HK}, c_h)$ and $m = d(\mathrm{mk},
+and obtains $q \, || \, R = d(\mathrm{HK}, c_h)$ and $m = d(\mathrm{mk},
 c_m)$. If either of these operations fail, he/she raises a Message\_Undecryptable
 exception, sets the resync\_required flag \textit{True},
 and passes $c^\prime$ and control to the message-received housekeeping routine described in
 Section \ref{sec:receivehousekeeping}.
-\item Participant $P_j$ sets $R_q = R_q^{new}$.
+\item Participant $P_j$ sets $R_q = R \, \oplus \,
+\mathrm{hash}(\mathrm{ECDH}(r_j, R_q))$.
 \item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_i$ as
 follows: \\
 $\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v, \oplus_i
@@ -278,7 +343,7 @@ The list may be extended if other useful operations are identified.
 \subsection{\label{sec:receivehousekeeping}Message Received Housekeeping}
 Housekeeping messages will be routed based on a one-byte header prepended to the
 payload of the housekeeping message. The byte values and their corresponding
-housekeeping tasks are (currently there are 2): \\
+housekeeping tasks are (currently there are 4): \\
 
 \begin{centering}
 \begin{tabular}{|c|c|c|}
@@ -287,6 +352,8 @@ Byte Value & Housekeeping Task & Location \\
 \hline
 $0\mathrm{x}00$ & Resynchronizing the Ratchet State  & Section \ref{sec:receiveresync}\\
 $0\mathrm{x}01$ & Instant Messaging Within SMMP & Section \ref{sec:imdecrypt}\\
+$0\mathrm{x}02$ & Adding Members To the Group & Section \ref{sec:additions}\\
+$0\mathrm{x}03$ & Removing Members From the Group & Section \ref{sec:removal}\\
 \hline
 \end{tabular} \\
 \end{centering}
@@ -308,9 +375,10 @@ and control of the decryption will be passed here. The receiving participant
 will then proceed as follows:
 \begin{enumerate}
 \item Participant $P_j$ sets $v = m$.
+\item Participant $P_j$ computes $\{r_i\} = \{\mathrm{hash}(i)\}$.
 \item Participant $P_j$ updates his/her ratchet state
 $\mathcal{\hat{A}}_j$ as follows:\\
-$\{R_i\} = \{ \mathrm{hash}(v \, || \, i)\}$, \\
+$\{R_i\} = \{\mathrm{ECDH}(r_i, X)\}$, \\
 $\mathrm{RK} = \mathrm{hash}(\oplus_i \, R_i \, || \, \mathrm{ECDH}(v, \oplus_i
 \, R_i))$, \\
 $\mathrm{HK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
@@ -321,6 +389,15 @@ $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
 
 \subsubsection{\label{sec:imdecrypt}Decrypting Private Messages Within SMMP: $b =
 0\mathrm{x}01$}
+
+tbd...
+
+\subsubsection{\label{sec:additions}Adding Members To the Group: $b =
+0\mathrm{x}02$}
+
+tbd...
+\subsubsection{\label{sec:removal}Removing Members From the Group: $b =
+0\mathrm{x}03$}
 
 tbd...
 
@@ -347,10 +424,11 @@ that should be transport-specific and is unspecified here.
 action is necessary. If \textit{True}, participant $P_j$ continues with the next
 step.
 \item Participant $P_j$ broadcasts $c$ to all participants $P_i$.
+\item Participant $P_j$ computes $\{r_i\} = \{\mathrm{hash}(i)\}$.
 \item Participant $P_j$ updates his/her ratchet state
 $\mathcal{\hat{A}}_j$ as follows:\\
 $v = v^{new}$, \\
-$\{R_i\} = \{ \mathrm{hash}(v \, || \, i)\}$, \\
+$\{R_i\} = \{\mathrm{ECDH}(r_i, X)\}$, \\
 $\mathrm{RK} = \mathrm{hash}(\oplus_i \, R_i \, || \, \mathrm{ECDH}(v, \oplus_i
 \, R_i))$, \\
 $\mathrm{HK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
@@ -359,64 +437,65 @@ $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
 \item Participant $P_j$ sets his resync\_required flag to \textit{False}.
 \end{enumerate}
 
-\section{\label{sec:discussion}Discussion}
-Various protocols exist for facilitating secure one-on-one messaging, including
-Off the Record Messaging (OTR)\cite{ref:otr1,ref:otr2,ref:otr3,ref:otr}, Silent Circle Instant Messaging Protocol
-(SCIMP)\cite{ref:scimp}, and Axolotl\cite{ref:axolotl}. Each of these protocols
-provides security through the use of ephemeral keys for symmetric encryption.
-The method of generating and exchanging these keys varies widely between the
-three protocols. All of the protocols provide forward
-secrecy. Some also provide plausible deniability. And one (Axolotl) also
-provides perfect future secrecy (compromise of the current keyset does not cause
-compromise of future keysets). However, each of these protocols is limited to
-the one-on-one messaging case.
+\section{\label{sec:analysis}Security and Efficiency Analysis}
 
-OTR was the first such protocol. It is based on an Advertise $\rightarrow$
-Acknowledge $\rightarrow$ Use method for key updating. OTR has been widely used
-for secure instant messaging and applications containing OTR plugins are
-available for XMPP, IRC, and other messaging systems.
+\subsection{\label{sec:securitymodel}Security Model}
+Following the work of Goldberg, \textit{et.al.}\cite{ref:goldberg}, we propose a
+security model with the following attributes:
+\begin{itemize}
+\item Confidentiality - While a participant is willing to disclose certain
+information to members of a group, the group communication should remain hidden
+to those outside the group.
+\item Entity authentication - Prior to joining the group, members should be
+authenticated so that during the group conversation, group members can be
+confident that messages purportedly from a particular group member were
+actually authored by that group member.
+\item Origin authentication - All messages should be authenticated as to their
+participant of origin.
+\item Forward secrecy - The protocol should provide PFS for all messages sent as
+part of the group communication.
+\item Future secrecy - The protocol should provide PFuS for all future messages
+to be sent as part of the group communication.
+\item Plausible Deniability - The protocol should provide PD such that a
+transcript of the group conversation cannot be used to prove the membership of
+any participant after the conversation has completed.
+\end{itemize}
 
-SCIMP is a proprietary protocol developed by Silent Circle as their solution for
-providing secure communications as part of their product line. The key
-advancement algorithm for SCIMP is essentially a hash. Each symmetric encryption
-key is hashed to obtain the key for the next ratchet step. As a result, a key
-compromise at any point will permit an attacker to follow the conversation from
-that point on.
+Further, we adopt the same threat model as did Goldberg
+\textit{et.al}\cite{ref:goldberg}. In particular, we analyze the robustness of
+the protocol to three types of adversaries, a security adversary, a consensus
+adversary, and a privacy adversary. We further assume that all group
+participants will follow the protocol faithfully. This assumption is valid for
+both honest participants (they have an interest in a secure group conversation),
+as well as dishonest participants (they have an interest in not revealing their
+dishonesty during the conversation).  Online judges (members of the group) can
+be considered a subset of the dishonest participants. Both online and offline
+judges will be used to determine if the goals of the protocol have been met.
 
-Axolotl is the first one-on-one messaging protocol to provide future secrecy. In
-this protocol, randomly-generated key data is mixed in to the ratchet state with
-each message send/receive operation, so that a compromised keyset permits an
-attacker access to only one message. Following the conversation requires a new
-key compromise with each message sent.
+\subsection{\label{sec:networkmodel}Network Model}
+The network model used by SMMP is that of a fully-connected graph.
+Operation of the network may be simplified somewhat by using an echo server to
+relay messages to all participants. The requirements for this echo server are
+not great. It should not have decryption capability, and as a result does not
+need to maintain its own ratchet state. It merely needs to route messages based
+on routing information supplied by the sending participant. Providing such routing
+information will not provide additional metadata to an adversary, because the
+adversary could also track the message flow along the connected graph, obtaining
+the same information.
 
-The first proposal for a secure group $(N \ge 3)$ messaging protocol was that of
-Bian \textit{et.al.}\cite{ref:bian} [Group Off The Record (GOTR)]. The protocol is based on a virtual server,
-a user that sets up a secure one-on-on channel with each member of the group.
-When members of the group who are not the virtual server wish to communicate
-with each other, they relay their messages through the virtual server. The
-problem with this approach is that there is no way for users to verify that they
-are getting a complete transcript of the group conversation. Trust in the
-virtual server is required, and a compromise of the virtual server would permit
-an attacker to follow the entire conversation.
+The connected graph network suffers from scalability issues - for large enough
+groups, maintaining the ratchet state becomes very resource intensive. However,
+we do not believe this is a significant disadvantage, because person-to-person
+group conversations suffer from the same scalability problem. It  would be
+unusual to see a group conversation between a number of participants larger
+than \textit{e.g.} $N = 20$ or so. Larger conversations tend to break into
+sub-conversations.
+Extending SMMP to cover multiple sub-conversations with a group will be
+described in a later paper.
 
-A second proposal for a secure group messaging protocol was made by Goldberg
-\textit{et.al.}\cite{ref:goldberg} [multi-party Off The Record (mpOTR)].
-While this protocol solved some of the
-problems associate with the Bian messaging scheme, it did not give a complete
-key-agreement algorithm. Thus far, to our knowledge, the key-agreement problem
-has not been solved. As a result, this protocol has never been successfully
-implemented.
-
-An improvement of the GOTR/mpOTR protocol was made by Liu
-\textit{et.al}\cite{ref:liu}.
-
-In this paper, we have presented a secure, peer-to-peer multi-party messaging protocol
-(SMMP) that provides PFS, PFuS, and PD, and has a simple key agreement
-algorithm. The protocol allows all group members to confirm that they are
-receiving a complete transcript of the group conversation, and provides a
-robust mechanism for resynchronization of the ratchet state if messages are lost
-because of failure of the underlying transport mechanism.
-
+Finally, we note that we have developed a reference
+implementation\cite{ref:referenceimplementation} of SMMP. The reference
+implementation uses an echo server to forward messages to users.
 \begin{thebibliography}{99}
 \bibitem{ref:bian} J. Bian, R. Seker, and U. Topaloglu ``Off-the-Record Instant
 Messaging for Group Conversation," \textit{IRI '07: Proceedings of Information
@@ -456,6 +535,10 @@ Security}, pp. 1-10, SOUPS, 2008.
 
 \bibitem{ref:axolotl} Trevor Perrin and Moxie Marlinspike, ``Axolotl Ratchet",
 \url{https://github.com/trevp/axolotl/wiki/newversion}, accessed Feb. 22, 2014.
+
+\bibitem{ref:referenceimplementation} D. R. Andersen, M. S. Andersland, and T.
+J. Andersen, ``Reference implementation of SSMP: A Secure Multi-party Messaging
+Protocol," \url{https://notpublicyet}, 2014.
 
 \end{thebibliography}
 \end{document}
