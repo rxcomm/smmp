@@ -49,12 +49,14 @@ def receiveData(client, address, index):
 try:
     while True:
         client, address = s.accept()
-        if len(client_list) == 0:
-            client_list_index = 0
-        client_list[client_list_index] = client
+        data = ''
+        while data[-5:] != 'START':
+            rcv = client.recv(1024)
+            data = data + rcv
+        my_index = int(data[:-5])
+        client_list[my_index] = client
         address_list = address_list + [address]
-        threading.Thread(target=receiveData,args=(client,address,client_list_index)).start()
-        print str(address) + ' connected'
-        client_list_index += 1
+        threading.Thread(target=receiveData,args=(client,address,my_index)).start()
+        print str(my_index) + ': ' +str(address) + ' connected'
 except KeyboardInterrupt:
     print 'Server stopped'

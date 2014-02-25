@@ -381,6 +381,7 @@ if __name__ == '__main__':
             print 'Connecting to ' + HOST + '...'
             with socketcontext(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.connect((HOST, PORT))
+                s.send(str(mypart.state['my_index']).zfill(3) + 'START')
                 chatThread(s, mypart, myname)
             exit()
 
