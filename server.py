@@ -13,6 +13,11 @@ from time import time
 HOST = '0.0.0.0'
 PORT = 50000
 BACKLOG = 10
+ans = raw_input('Keep a log of the (encrypted) traffic? y/N ')
+if ans == 'y' or ans == 'Y' or ans == 'yes':
+    LOGTRAFFIC = True
+else:
+    LOGTRAFFIC = False
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -42,6 +47,9 @@ def receiveData(client, address, index):
         data_list = data.split('EOP')
         for data in data_list:
             if data != '':
+                if LOGTRAFFIC:
+                    with open('server.traffic.log', 'a') as f:
+                        f.write(binascii.b2a_base64(data))
                 for i, item in client_list.iteritems():
                     if (data[:3] != '998' and client != item) and (data[:3] == '999' or int(data[:3]) == i):
                         item.send(data[3:] + 'EOP')
