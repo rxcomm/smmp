@@ -214,13 +214,14 @@ storage:
 \item NHK - the next header key
 \item mk - the message key
 \item $v$ - the group private ratchet key
+\item $\mathrm{conv\_digest}$ - the digest of all conversation messages so far
 \item $r_j$ - the participant private ratchet key (for participant $P_j$,
 $\mathrm{ECDH}(r_j, X) = R_j$)
 \item $\{R_i\}$ - the set of public ratchet keys from each participant $P_i$
 \item $i$ - Participant $P_j$'s participant index number
 \item $N$ - the group size
-\item group\_name - the group name (this may be different for each Participant)
-\item resync\_required - a flag used to determine if a resynchronization of the
+\item $\mathrm{group\_name}$ - the group name (this may be different for each Participant)
+\item $\mathrm{resync\_required}$ - a flag used to determine if a resynchronization of the
 ratchet state is required
 \end{itemize}
 
@@ -261,6 +262,7 @@ $\mathrm{HK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}01)$, \\
 $\mathrm{NHK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}02)$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}03)$, \\
 $v = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}04)$, \\
+$\mathrm{conv\_digest} = 0\mathrm{x}00 * 32$, \\
 $r_i$ from step 6, \\
 $\{R_i\}$ from participants, \\
 $N$ from Organizer $O$, \\
@@ -277,9 +279,12 @@ Participants wanting to send a message will proceed as follows:
 participants, he forms a message $m$.
 \item Participant $P_j$ generates a new ephemeral ratchet key
 $(r_j^{new},R_j^{new})$.
+\item Participant $P_j$ computes a new conversation digest
+$ \mathrm{conv\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$.
 \item For all $i \ne j$, participant $P_j$ computes the set of $N-1$ preliminary ciphertexts $c_{hi} =
 e(\mathrm{HK}, j
-\, || \, R_j^{new} \, \oplus \, \mathrm{hash}(\mathrm{ECDH}(r_j, R_i)))$ and the
+\, || \, R_j^{new} \, \oplus \, \mathrm{hash}(\mathrm{ECDH}(r_j, R_i)) \, || \, 
+\mathrm{conv\_digest})$ and the
 set of $N-1$ preliminary ciphertexts
 $c_{mi} = e(\mathrm{mk}, m)$.
 He the forms $c_i^\prime = c_{hi} \, || \, c_{mi}$.
@@ -304,11 +309,17 @@ $c^\prime$ and $c_{hmac}$ parts.
 \item Participant $P_j$ tests if $\mathrm{hash}(v, c^\prime) = c_{hmac}$. If
 they do not match, he/she raises a Bad\_HMAC exception and goes no further.
 \item Participant $P_j$ splits $c^\prime$ into header $c_h$ and message $c_m$ components
-and obtains $q \, || \, R = d(\mathrm{HK}, c_h)$ and $m = d(\mathrm{mk},
+and obtains $q \, || \, R \, || \, \mathrm{conv\_digest} =
+d(\mathrm{HK}, c_h)$ and $m = d(\mathrm{mk},
 c_m)$. If either of these operations fail, he/she raises a Message\_Undecryptable
 exception, sets the resync\_required flag \textit{True},
 and passes $c^\prime$ and control to the message-received housekeeping routine described in
 Section \ref{sec:receivehousekeeping}.
+\item Participant $P_j$ computes a new conversation digest
+$\mathrm{new\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$ and tests if
+$\mathrm{new\_digest} = \mathrm{conv\_digest}$. If this test fails, he/she raises
+a Bad\_DIGEST exception and goes no further. If the test succeeds, he/she sets
+$\mathrm{conv\_digest} = \mathrm{new\_digest}$.
 \item Participant $P_j$ sets $R_q = R \, \oplus \,
 \mathrm{hash}(\mathrm{ECDH}(r_j, R_q))$.
 \item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_i$ as

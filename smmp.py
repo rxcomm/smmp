@@ -133,18 +133,20 @@ class Participant:
                  'MK': MK,
                  'R' : group_ratchetKeys,
                  'v' : v,
+                 'digest' : '\x00' * 32
                }
 
     def encrypt(self, plaintext):
         rnew, Rnew = self.genKey()
         messages = {}
+        self.state['digest'] = self.strxor(self.state['digest'], hashlib.sha256(plaintext).digest())
         for i in range(self.group_size):
             if i != self.state['my_index']:
                 otp = hashlib.sha256(self.genDH(self.ratchetKey, self.state['R'][i])).digest()
                 encrypted_Rnew = self.strxor(Rnew, otp)
-                msg1 = self.enc(self.state['HK'], str(self.state['my_index']).zfill(3) + encrypted_Rnew)
+                msg1 = self.enc(self.state['HK'], str(self.state['my_index']).zfill(3) + encrypted_Rnew + self.state['digest'])
                 msg2 = self.enc(self.state['MK'], plaintext)
-                pad_length = 103 - len(msg1)
+                pad_length = 147 - len(msg1)
                 pad = os.urandom(pad_length - 1) + chr(pad_length)
                 msg = msg1 + pad + msg2
                 mac = hmac.new(self.state['v'], msg, hashlib.sha256).digest()
@@ -183,20 +185,25 @@ class Participant:
     def decrypt(self, msg):
         if hmac.new(self.state['v'], msg[:-32], hashlib.sha256).digest() != msg[-32:]:
             raise BadHMAC
-        pad = msg[102:103]
+        pad = msg[146:147]
         pad_length = ord(pad)
-        msg1 = msg[:103-pad_length]
+        msg1 = msg[:147-pad_length]
 
         header = self.dec(self.state['HK'], msg1)
         if not header or header == '':
             return self.resyncReceive(msg[:-32])
         Pnum = int(header[:3])
         otp = hashlib.sha256(self.genDH(self.ratchetKey, self.state['R'][Pnum])).digest()
-        self.state['R'][Pnum] = self.strxor(header[3:], otp)
+        self.state['R'][Pnum] = self.strxor(header[3:35], otp)
+        digest = header[35:]
 
-        body = self.dec(self.state['MK'], msg[103:-32])
+        body = self.dec(self.state['MK'], msg[147:-32])
         if not body or body == '':
             raise BummerUndecryptable
+        msg_digest = self.strxor(hashlib.sha256(body).digest(),self.state['digest'])
+        if msg_digest != digest:
+            raise BadDIGEST
+        self.state['digest'] = msg_digest
         DHR = '\x00' * 32
         for i in range(self.group_size):
             DHR = self.strxor(DHR, self.genDH(self.state['v'], self.state['R'][i]))
@@ -301,5 +308,9 @@ class BummerUndecryptable(Exception):
         pass
 
 class BadHMAC(Exception):
+    def __init__(self):
+        pass
+
+class BadDIGEST(Exception):
     def __init__(self):
         pass

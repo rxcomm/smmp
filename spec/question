@@ -1,0 +1,2 @@
+Any multiparty chat protocol will need to check consensus by having
+parties broadcast hashes of the messages they've received.

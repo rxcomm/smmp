@@ -11,7 +11,7 @@ from curses.textpad import Textbox
 from random import randint
 from contextlib import contextmanager
 from time import sleep
-from smmp import Participant, Organizer, BummerUndecryptable, BadHMAC
+from smmp import Participant, Organizer, BummerUndecryptable, BadHMAC, BadDIGEST
 from StringIO import StringIO
 from getpass import getpass
 
@@ -230,6 +230,8 @@ def receiveThread(sock, mypart, stdscr, input_win, output_win, title_win):
                         output_win.addstr('Undecryptable message\n', curses.color_pair(1))
                     except BadHMAC:
                         output_win.addstr('Bad HMAC\n', curses.color_pair(1))
+                    except BadDIGEST:
+                        output_win.addstr('Bad Message Digest\n', curses.color_pair(1))
         input_win.move(cursory, cursorx)
         input_win.cursyncup()
         input_win.noutrefresh()
@@ -324,6 +326,7 @@ def saveState(mypart):
         resync_required = '1' if mypart.resync_required else '0'
         f.write(resync_required+'\n')
         f.write(binascii.b2a_base64(mypart.ratchetKey))
+        f.write(binascii.b2a_base64(mypart.state['digest']))
         for key, item in mypart.state['R'].iteritems():
             f.write(binascii.b2a_base64(item))
 
@@ -343,9 +346,10 @@ def loadState(mypart):
         resync_required = data_list[7]
         mypart.resync_required = True if resync_required == '1' else False
         mypart.ratchetKey = binascii.a2b_base64(data_list[8])
+        mypart.state['digest'] = binascii.a2b_base64(data_list[9])
         mypart.state['R'] = {}
-        for i in range(len(data_list[9:])):
-            mypart.state['R'][i] = binascii.a2b_base64(data_list[9+i])
+        for i in range(len(data_list[10:])):
+            mypart.state['R'][i] = binascii.a2b_base64(data_list[10+i])
         mypart.group_size = len(mypart.state['R'])
 
 

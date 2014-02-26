@@ -66,5 +66,6 @@ if __name__ == '__main__':
             f.write(str(i) + '\n')
             f.write('0'+'\n')
             f.write(binascii.b2a_base64(r[i]))
+            f.write(binascii.b2a_base64('\x00' * 32))
             for j in range(num_users):
                 f.write(binascii.b2a_base64(R[j]))
