@@ -29,7 +29,7 @@ floatfix,
 
 \begin{document}
 
-\preprint{Version 0.3.3}
+\preprint{Version 0.3.4}
 
 \title{SMMP: A Secure Multi-Party Messaging Protocol}% Force line breaks with \\
 
@@ -68,15 +68,17 @@ channel.
 %\tableofcontents
 \section{\label{sec:Introduction}Introduction}
 Secure multi-party messaging has been an elusive goal of security researchers
-for a long time. The initial `virtual server' approach\cite{ref:bian}
-was deemed unsatisfactory
+for a long time. The initial group off-the-record (GOTR) `virtual server'
+approach\cite{ref:bian} was deemed unsatisfactory
 because it has the unfortunate drawback of not permitting all participants to
 confirm that they were receiving unmodified copies of all messages.
 A further attempt to solve this problem\cite{ref:goldberg} was incomplete
-because of the lack of a simple key-agreement strategy. Work on the problem
+because of the lack of a simple, secure key-agreement
+strategy. Work on the problem
 continues to date, most notably with\cite{ref:cryptocat}, however the
 key-agreement problem remains unsolved. Liu \textit{et.al.}\cite{ref:liu}
-recently improved the GOTR/mpOTR key agreement mechanism.
+recently improved the security of GOTR/mpOTR using a Burmester-Desmedt group
+key agreement mechanism.
 
 In this paper, we describe a novel secure multi-party messaging protocol with a
 simple key-agreement algorithm that provides perfect forward secrecy (PFS),
@@ -92,7 +94,7 @@ same as all other Participants.
 \section{\label{sec:keypoints}Key Points}
 \begin{itemize}
 \item Each group key agreement is facilitated by an Organizer, who is also
-Participant $P_0$. Following the key agreement stage, the Organizer is no longer
+participant $P_0$. Following the key agreement stage, the Organizer is no longer
 required. The Organizer data is securely deleted and the Participant
 $P_0$ role is that of a peer like any other
 participant.
@@ -114,7 +116,7 @@ unspecified.
 
 \section{\label{sec:background}Background}
 Various protocols exist for facilitating secure one-on-one messaging, including
-Off the Record Messaging (OTR)\cite{ref:otr1,ref:otr2,ref:otr3,ref:otr}, Silent Circle Instant Messaging Protocol
+Off the Record Messaging (OTR)\cite{ref:otr1,ref:raimondo,ref:otr2,ref:otr3,ref:otr}, Silent Circle Instant Messaging Protocol
 (SCIMP)\cite{ref:scimp}, and Axolotl\cite{ref:axolotl}. Each of these protocols
 provides security through the use of ephemeral keys for symmetric encryption.
 The method of generating and exchanging these keys varies widely between the
@@ -150,7 +152,8 @@ with each other, they relay their messages through the virtual server. The
 problem with this approach is that there is no way for users to verify that they
 are getting a complete transcript of the group conversation. Trust in the
 virtual server is required, and a compromise of the virtual server would permit
-an attacker to follow the entire conversation.
+an attacker to follow the entire conversation, as well as learn the membership
+of the group.
 
 A second proposal for a secure group messaging protocol was made by Goldberg
 \textit{et.al.}\cite{ref:goldberg} [multi-party Off The Record (mpOTR)].
@@ -160,10 +163,11 @@ key-agreement algorithm. Thus far, to our knowledge, the key-agreement problem
 has not been solved. As a result, this protocol has never been successfully
 implemented.
 
-An improvement of the GOTR/mpOTR protocol was made by Liu
-\textit{et.al}\cite{ref:liu}.
+An improvement of the security of the GOTR/mpOTR protocol was made by Liu
+\textit{et.al}\cite{ref:liu} using a Burmester-Desmedt group key agreement
+protocol.
 
-In this paper, we have presented a secure, peer-to-peer multi-party messaging protocol
+In this paper, we present a secure, peer-to-peer multi-party messaging protocol
 (SMMP) that provides PFS, PFuS, and PD, and has a simple key agreement
 algorithm. The protocol allows all group members to confirm that they are
 receiving a complete transcript of the group conversation, and provides a
@@ -202,7 +206,7 @@ $y$ and $z$ is then $ \mathrm{ECDH}(y,Z) = \mathrm{ECDH}(z,Y) =
 \end{itemize}
 
 \section{\label{sec:protocolstate}Protocol State}
-Each Participant $P_i$ will maintain the following variables in persistent
+Each Participant $P_j$ will maintain the following state variables in persistent
 storage:
 \begin{itemize}
 \item RK - the root key
@@ -210,10 +214,10 @@ storage:
 \item NHK - the next header key
 \item mk - the message key
 \item $v$ - the group private ratchet key
-\item $r$ - the participant private ratchet key (for participant $P_j$,
-$\mathrm{ECDH}(r, X) = R_j$)
+\item $r_j$ - the participant private ratchet key (for participant $P_j$,
+$\mathrm{ECDH}(r_j, X) = R_j$)
 \item $\{R_i\}$ - the set of public ratchet keys from each participant $P_i$
-\item $i$ - Participant $P_i$'s participant index number
+\item $i$ - Participant $P_j$'s participant index number
 \item $N$ - the group size
 \item group\_name - the group name (this may be different for each Participant)
 \item resync\_required - a flag used to determine if a resynchronization of the
@@ -234,13 +238,13 @@ keys $(u, U )$ and $(w, W)$.
 \item Organizer $O$ forwards $U$, $W$, $N$, and $i$ to each participant $P_i$.
 \item Each participant $P_i$ generates ECDH
 persistent identity, ephemeral handshake and ephemeral ratchet keys $(b_i, B_i)$,
-$(k_i, K_i)$ and $(r_i, R_i)$.
+$(k_i, K_i)$, and $(r_i, R_i)$.
 \item Each participant $P_i$ forwards $B_i$ and $K_i$ to Organizer $O$.
 \item Each participant $P_i$ forwards $R_i$ to all other participants in the
 group.
 \item Organizer $O$ authenticates the identity of each participant $P_i$ with
 identity key $B_i$.
-\item Each participant $P_i$ authenticates the group identity $U$ with Organizer
+\item Each participant $P_i$ authenticates the group identity key $U$ with Organizer
 $O$.
 \item Organizer $O$ computes:\\
 $L_i$ = $\mathrm{hash}(\mathrm{ECDH}(u, K_i) \,
@@ -257,6 +261,7 @@ $\mathrm{HK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}01)$, \\
 $\mathrm{NHK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}02)$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}03)$, \\
 $v = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}04)$, \\
+$r_i$ from step 6, \\
 $\{R_i\}$ from participants, \\
 $N$ from Organizer $O$, \\
 $i$ from Organizer $O$, \\
@@ -369,7 +374,7 @@ $m$ and control to that section.
 0\mathrm{x}00$}
 It is possible, during communication within the group, that a participant's
 ratchet state may become unsynchronized. Transport layer failures due to lost
-packets or packet collisions can cause a participant to be unsynchronized. If
+messages or message collisions can cause a participant to be unsynchronized. If
 this is the case, a Message\_Undecryptable exception will be raised
 and control of the decryption will be passed here. The receiving participant
 will then proceed as follows:
@@ -457,8 +462,8 @@ part of the group communication.
 \item Future secrecy - The protocol should provide PFuS for all future messages
 to be sent as part of the group communication.
 \item Plausible Deniability - The protocol should provide PD such that a
-transcript of the group conversation cannot be used to prove the membership of
-any participant after the conversation has completed.
+transcript of the group conversation cannot be used to prove the membership in
+the group of any participant after the conversation has completed.
 \end{itemize}
 
 Further, we adopt the same threat model as did Goldberg
@@ -479,7 +484,7 @@ relay messages to all participants. The requirements for this echo server are
 not great. It should not have decryption capability, and as a result does not
 need to maintain its own ratchet state. It merely needs to route messages based
 on routing information supplied by the sending participant. Providing such routing
-information will not provide additional metadata to an adversary, because the
+information will not leak additional metadata to an adversary, because the
 adversary could also track the message flow along the connected graph, obtaining
 the same information.
 
@@ -519,6 +524,10 @@ Privacy in the Electronic Society,} ACM, 2013.
 \bibitem{ref:otr1} N. Borisov, I. Goldberg, and E. Brewer, ``Off-the-Record
 Communication, or, Why Not To Use PGP," \textit{WPES'04: Proceedings of the
 ACM Workshop on Privacy in the Electronic Society,} ACM, 2004.
+
+\bibitem{ref:raimondo} M. D.Raimondo, R. Gennaro, and H. Krawczyk, ``Secure
+Off-the-Record Messaging," \textit{WPES'05 Proceedings of the 2005 ACM Workshop
+on Privacy in the Electronic Society,} pp. 81-89, ACM, 2005.
 
 \bibitem{ref:otr2} C. Alexander and I. Goldberg, ``Improved User Authentication
 in Off-The-Record Messaging," \textit{WPES'07: Proceeedings of the ACM Workshop
