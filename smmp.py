@@ -247,7 +247,8 @@ class Participant:
                 break
             count += 1
         v, V = self.genKey()
-        msg1 = self.enc(self.state['v'], '\x00' + v)
+        self.state['digest'] = self.strxor(self.state['digest'], hashlib.sha256('\x00' + v).digest())
+        msg1 = self.enc(self.state['v'], '\x00' + v + self.state['digest'])
         mac = hmac.new(self.state['v'], msg1, hashlib.sha256).digest()
         R = {}
         r = {}
@@ -281,10 +282,15 @@ class Participant:
             plaintext = self.dec(self.state['v'], ciphertext)
         except (DecodeError, ValueError):
             raise BummerUndecryptable
-        if plaintext[:1] != '\x00' or len(plaintext[1:]) != 32 or ciphertext is None:
+        if plaintext[:1] != '\x00' or len(plaintext[1:]) != 64 or ciphertext is None:
             raise BummerUndecryptable
         else:
-            self.state['v'] = plaintext[1:]
+            digest = plaintext[33:]
+            msg_digest = self.strxor(hashlib.sha256(plaintext[:33]).digest(),self.state['digest'])
+            if msg_digest != digest:
+                raise BadDIGEST
+            self.state['digest'] = msg_digest
+            self.state['v'] = plaintext[1:33]
             R = {}
             r = {}
             for i in range(len(self.state['R'])):
