@@ -110,6 +110,9 @@ activation of the group protocol.
 \item Participants may not be added to the group. This would
 require a reinitialization of the group secrets. A Participant may leave the
 group.
+\item A uniform message transcript is assured over all participants via a
+conversation digest that is updated with each message. If the digest does not
+match what a receiver expects, a resynchronization of the protocol is requested.
 \item The underlying symmetric encryption algorithm used for communication is
 unspecified.
 \end{itemize}
@@ -164,8 +167,10 @@ has not been solved. As a result, this protocol has never been successfully
 implemented.
 
 An improvement of the security of the GOTR/mpOTR protocol was made by Liu
-\textit{et.al}\cite{ref:liu} using a Burmester-Desmedt group key agreement
-protocol.
+\textit{et.al}\cite{ref:liu} using a Burmester-Desmedt\cite{ref:burmester}
+group key agreement
+protocol. The Liu group demonstrated their protocol with a
+Pidgin\cite{ref:pidgin} plugin.
 
 In this paper, we present a secure, peer-to-peer multi-party messaging protocol
 (SMMP) that provides PFS, PFuS, and PD, and has a simple key agreement
@@ -527,6 +532,13 @@ Reuse and Integration,} pp. 79-84, IEEE Computer Society, 2007.
 \bibitem{ref:liu} H. Liu, E. Y. Vasserman, and N. Hopper, ``Improved Group
 Off-the-Record Messaging," \textit{WPES'13: Proceedings of the ACM Workshop on
 Privacy in the Electronic Society,} ACM, 2013.
+
+\bibitem{ref:burmester} M. Burmester and Y. Desmedt, ``A secure and efficient
+conference key distribution system," \textit{EUROCRYPT'94: Advances in
+Cryptology,} volume 950 of Lecture Notes in Computer Science, 1995.
+
+\bibitem{ref:pidgin} ``Pidgin," \url{https://www.pidgin.im}, accessed Feb. 27,
+2014.
 
 \bibitem{ref:otr} ``Off the Record Messaging",
 \url{https://otr.cypherpunks.ca/}, accessed Feb. 22, 2014.
