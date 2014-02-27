@@ -29,7 +29,7 @@ floatfix,
 
 \begin{document}
 
-\preprint{Version 0.3.4}
+\preprint{Version 0.3.5}
 
 \title{SMMP: A Secure Multi-Party Messaging Protocol}% Force line breaks with \\
 
@@ -281,10 +281,10 @@ participants, he forms a message $m$.
 $(r_j^{new},R_j^{new})$.
 \item Participant $P_j$ computes a new conversation digest
 $ \mathrm{conv\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$.
-\item For all $i \ne j$, participant $P_j$ computes the set of $N-1$ preliminary ciphertexts $c_{hi} =
-e(\mathrm{HK}, j
-\, || \, R_j^{new} \, \oplus \, \mathrm{hash}(\mathrm{ECDH}(r_j, R_i)) \, || \, 
-\mathrm{conv\_digest})$ and the
+\item For all $i \ne j$, participant $P_j$ computes the set of $N-1$ preliminary
+ciphertexts $c_{hi} = e(\mathrm{HK}, j
+\, || \, R_j^{new} \, \oplus \, \mathrm{hash}(\mathrm{ECDH}(r_j, R_i) \, \oplus
+\, \mathrm{conv\_digest})$ and the
 set of $N-1$ preliminary ciphertexts
 $c_{mi} = e(\mathrm{mk}, m)$.
 He the forms $c_i^\prime = c_{hi} \, || \, c_{mi}$.
@@ -309,19 +309,16 @@ $c^\prime$ and $c_{hmac}$ parts.
 \item Participant $P_j$ tests if $\mathrm{hash}(v, c^\prime) = c_{hmac}$. If
 they do not match, he/she raises a Bad\_HMAC exception and goes no further.
 \item Participant $P_j$ splits $c^\prime$ into header $c_h$ and message $c_m$ components
-and obtains $q \, || \, R \, || \, \mathrm{conv\_digest} =
+and obtains $q \, || \, R =
 d(\mathrm{HK}, c_h)$ and $m = d(\mathrm{mk},
 c_m)$. If either of these operations fail, he/she raises a Message\_Undecryptable
 exception, sets the resync\_required flag \textit{True},
 and passes $c^\prime$ and control to the message-received housekeeping routine described in
 Section \ref{sec:receivehousekeeping}.
 \item Participant $P_j$ computes a new conversation digest
-$\mathrm{new\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$ and tests if
-$\mathrm{new\_digest} = \mathrm{conv\_digest}$. If this test fails, he/she raises
-a Bad\_DIGEST exception and goes no further. If the test succeeds, he/she sets
-$\mathrm{conv\_digest} = \mathrm{new\_digest}$.
+$\mathrm{conv\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$.
 \item Participant $P_j$ sets $R_q = R \, \oplus \,
-\mathrm{hash}(\mathrm{ECDH}(r_j, R_q))$.
+\mathrm{hash}(\mathrm{ECDH}(r_j, R_q)) \, \oplus \, \mathrm{conv\_digest}$.
 \item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_i$ as
 follows: \\
 $\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v, \oplus_i
@@ -399,8 +396,9 @@ $\mathrm{RK} = \mathrm{hash}(\oplus_i \, R_i \, || \, \mathrm{ECDH}(v, \oplus_i
 \, R_i))$, \\
 $\mathrm{HK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
 $\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
-$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
-\item Participant $P_j$ sets his resync\_required flag to \textit{False}.
+$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$, \\
+$\mathrm{conv\_digest} = 0\mathrm{x}00 * 32$, \\
+$\mathrm{resync\_required} = False$.
 \end{enumerate}
 
 \subsubsection{\label{sec:imdecrypt}Decrypting Private Messages Within SMMP: $b =
@@ -449,8 +447,9 @@ $\mathrm{RK} = \mathrm{hash}(\oplus_i \, R_i \, || \, \mathrm{ECDH}(v, \oplus_i
 \, R_i))$, \\
 $\mathrm{HK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
 $\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
-$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
-\item Participant $P_j$ sets his resync\_required flag to \textit{False}.
+$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$, \\
+$\mathrm{conv\_digest} = 0\mathrm{x}00 * 32$, \\
+$\mathrm{resync\_required} = False$.
 \end{enumerate}
 
 \section{\label{sec:analysis}Security and Efficiency Analysis}
