@@ -1,4 +1,11 @@
-There is a bug in the python-gnupg 0.3.6 module that throws an
+1. The curve25519 repository is not in PyPI, so you will need to
+install it by hand. To do that:
+
+     git clone https://github.com/agl/curve25519-donna
+     cd curve25519-donna
+     sudo python setup.py install
+
+2. There is a bug in the python-gnupg 0.3.6 module that throws an
 exception if gpg emits an "UNEXPECTED" message. This happens when
 two messages collide on receipt, and are mixed.
 
