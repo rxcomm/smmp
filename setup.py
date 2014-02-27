@@ -7,7 +7,7 @@ import os
 import pwd
 
 setup(name='smmp',
-      version='0.2.2',
+      version='0.3.5',
       description='Python implementation of the SMMP protocol',
       author='David R. Andersen',
       url='none',
