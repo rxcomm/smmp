@@ -185,13 +185,16 @@ class Participant:
     def decrypt(self, msg):
         if hmac.new(self.state['v'], msg[:-32], hashlib.sha256).digest() != msg[-32:]:
             raise BadHMAC
-        pad = msg[146:147]
-        pad_length = ord(pad)
-        msg1 = msg[:147-pad_length]
+        if len(msg) >= 147:
+            pad = msg[146:147]
+            pad_length = ord(pad)
+            msg1 = msg[:147-pad_length]
+        else:
+            return self.resyncReceive(msg[:-32])
 
         header = self.dec(self.state['HK'], msg1)
         if not header or header == '':
-            return self.resyncReceive(msg[:-32])
+            raise BummerUndecryptable
         Pnum = int(header[:3])
         otp = hashlib.sha256(self.genDH(self.ratchetKey, self.state['R'][Pnum])).digest()
         self.state['R'][Pnum] = self.strxor(header[3:35], otp)
@@ -247,8 +250,7 @@ class Participant:
                 break
             count += 1
         v, V = self.genKey()
-        self.state['digest'] = self.strxor(self.state['digest'], hashlib.sha256('\x00' + v).digest())
-        msg1 = self.enc(self.state['v'], '\x00' + v + self.state['digest'])
+        msg1 = self.enc(self.state['v'], '\x00' + v)
         mac = hmac.new(self.state['v'], msg1, hashlib.sha256).digest()
         R = {}
         r = {}
@@ -272,6 +274,7 @@ class Participant:
             self.state['HK'] = HK
             self.state['NHK'] = NHK
             self.state['MK'] = MK
+            self.state['digest'] = '\x00' * 32
             sock.send('999' + msg1 + mac + 'EOP')
             return 'Resync sent'
         return 'Resync send message aborted'
@@ -282,15 +285,10 @@ class Participant:
             plaintext = self.dec(self.state['v'], ciphertext)
         except (DecodeError, ValueError):
             raise BummerUndecryptable
-        if plaintext[:1] != '\x00' or len(plaintext[1:]) != 64 or ciphertext is None:
+        if plaintext[:1] != '\x00' or len(plaintext) != 33 or ciphertext is None:
             raise BummerUndecryptable
         else:
-            digest = plaintext[33:]
-            msg_digest = self.strxor(hashlib.sha256(plaintext[:33]).digest(),self.state['digest'])
-            if msg_digest != digest:
-                raise BadDIGEST
-            self.state['digest'] = msg_digest
-            self.state['v'] = plaintext[1:33]
+            self.state['v'] = plaintext[1:]
             R = {}
             r = {}
             for i in range(len(self.state['R'])):
@@ -307,6 +305,7 @@ class Participant:
             self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
             self.state['NHK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
             self.state['MK'] = pbkdf2(self.state['RK'], b'\x03', 10, prf='hmac-sha256')
+            self.state['digest'] = '\x00' * 32
             return 'Ratchet resync message received - System resynced!\n'
 
 class BummerUndecryptable(Exception):
