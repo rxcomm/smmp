@@ -242,9 +242,10 @@ class Participant:
             if not self.resync_required:
                 break
             count += 1
-        v, V = self.genKey()
-        msg1 = self.enc(self.state['v'], '\x00' + v)
+        vnew, pVnew = self.genKey()
+        msg1 = self.enc(self.state['v'], '\x00' + vnew)
         mac = hmac.new(self.state['v'], msg1, hashlib.sha256).digest()
+        v = hashlib.sha256(self.state['v'] + vnew).digest()
         R = {}
         r = {}
         for i in range(len(self.state['R'])):
@@ -281,7 +282,7 @@ class Participant:
         if plaintext[:1] != '\x00' or len(plaintext) != 33 or ciphertext is None:
             raise BummerUndecryptable
         else:
-            self.state['v'] = plaintext[1:]
+            self.state['v'] = hashlib.sha256(self.state['v'] + plaintext[1:]).digest()
             R = {}
             r = {}
             for i in range(len(self.state['R'])):

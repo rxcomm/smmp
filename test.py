@@ -143,7 +143,8 @@ while True:
         encrypter = randint(0,7)
 
         if counter % 5 == 0:
-            exec('v, V = p' + str(encrypter) + '.genKey()')
+            exec('vnew, pVnew = p' + str(encrypter) + '.genKey()')
+            exec('v = hashlib.sha256(p' + str(encrypter) + '.state["v"] + vnew).digest()')
             r = {}
             R = {}
             for i in range(len(participants)):
@@ -183,16 +184,14 @@ while True:
         exec(command)
 
         for i in range(len(participants)):
-            #try_twice = randint(0,9)
-            try_twice = 1
+            try_twice = randint(0,9)
             second_decryption = False
             try:
                 print 'P'+str(i)+': '+eval(participants[i]+'.decrypt(ciphertexts[i][3:])') + ' and decrypted by P' + str(i)
                 if try_twice == 0:
                     second_decryption = True
                     print ' ' + eval(participants[i]+'.decrypt(ciphertexts[i][3:])')
-            #except (BummerUndecryptable, BadHMAC):
-            except BadHMAC:
+            except (BummerUndecryptable, BadHMAC):
                 if not second_decryption:
                     print '* P'+str(i)+': Decryption Error!'
                 else:
