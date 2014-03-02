@@ -392,7 +392,7 @@ this is the case, a Message\_Undecryptable exception will be raised
 and control of the decryption will be passed here. The receiving participant
 will then proceed as follows:
 \begin{enumerate}
-\item Participant $P_j$ sets $v = m$.
+\item Participant $P_j$ sets $v = \mathrm{hash}(v \, || \, m)$.
 \item Participant $P_j$ computes $\{r_i\} = \{\mathrm{hash}(i)\}$.
 \item Participant $P_j$ updates his/her ratchet state
 $\mathcal{\hat{A}}_j$ as follows:\\
@@ -431,7 +431,7 @@ unsynchronized, and decrypting further conversation messages is impossible.
 A participant wishing to correct this situation should follow the following
 procedures (this may be automated):
 \begin{enumerate}
-\item Participant $P_j$ generates a new group private ratchet key $v^{new}$.
+\item Participant $P_j$ generates a new group private key $v^{new}$.
 \item participant $P_j$ computes preliminary ciphertext $c^\prime = e(v, 0\mathrm{x}00
 \, || \, v^{new})$.
 \item Participant $P_j$ computes hmac $c_{hmac} = \mathrm{hmac}(v, c^\prime)$.
@@ -446,7 +446,7 @@ step.
 \item Participant $P_j$ computes $\{r_i\} = \{\mathrm{hash}(i)\}$.
 \item Participant $P_j$ updates his/her ratchet state
 $\mathcal{\hat{A}}_j$ as follows:\\
-$v = v^{new}$, \\
+$v = \mathrm{hash}(v \, || \, v^{new})$, \\
 $\{R_i\} = \{\mathrm{ECDH}(r_i, X)\}$, \\
 $\mathrm{RK} = \mathrm{hash}(\oplus_i \, R_i \, || \, \mathrm{ECDH}(v, \oplus_i
 \, R_i))$, \\
