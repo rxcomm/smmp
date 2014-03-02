@@ -249,7 +249,7 @@ class Participant:
         R = {}
         r = {}
         for i in range(len(self.state['R'])):
-            key = keys.Private(secret=hashlib.sha256(str(i).zfill(32)).digest())
+            key = keys.Private(secret=hashlib.sha256(self.strxor(str(i).zfill(32), self.state['v'])).digest())
             r[i] = key.private
             R[i] = key.get_public().serialize()
         self.ratchetKey = r[self.state['my_index']]
@@ -282,13 +282,13 @@ class Participant:
         if plaintext[:1] != '\x00' or len(plaintext) != 33 or ciphertext is None:
             raise BummerUndecryptable
         else:
-            self.state['v'] = hashlib.sha256(self.state['v'] + plaintext[1:]).digest()
             R = {}
             r = {}
             for i in range(len(self.state['R'])):
-                key = keys.Private(secret=hashlib.sha256(str(i).zfill(32)).digest())
+                key = keys.Private(secret=hashlib.sha256(self.strxor(str(i).zfill(32), self.state['v'])).digest())
                 r[i] = key.private
                 R[i] = key.get_public().serialize()
+            self.state['v'] = hashlib.sha256(self.state['v'] + plaintext[1:]).digest()
             self.ratchetKey = r[self.state['my_index']]
             self.state['R'] = R
             DHR = '\x00' * 32

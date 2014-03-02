@@ -392,8 +392,8 @@ this is the case, a Message\_Undecryptable exception will be raised
 and control of the decryption will be passed here. The receiving participant
 will then proceed as follows:
 \begin{enumerate}
+\item Participant $P_j$ computes $\{r_i\} = \{\mathrm{hash}(i \, \oplus \, v)\}$.
 \item Participant $P_j$ sets $v = \mathrm{hash}(v \, || \, m)$.
-\item Participant $P_j$ computes $\{r_i\} = \{\mathrm{hash}(i)\}$.
 \item Participant $P_j$ updates his/her ratchet state
 $\mathcal{\hat{A}}_j$ as follows:\\
 $\{R_i\} = \{\mathrm{ECDH}(r_i, X)\}$, \\
@@ -443,7 +443,7 @@ that should be transport-specific and is unspecified here.
 action is necessary. If \textit{True}, participant $P_j$ continues with the next
 step.
 \item Participant $P_j$ broadcasts $c$ to all participants $P_i$.
-\item Participant $P_j$ computes $\{r_i\} = \{\mathrm{hash}(i)\}$.
+\item Participant $P_j$ computes $\{r_i\} = \{\mathrm{hash}(i \, \oplus \, v)\}$.
 \item Participant $P_j$ updates his/her ratchet state
 $\mathcal{\hat{A}}_j$ as follows:\\
 $v = \mathrm{hash}(v \, || \, v^{new})$, \\

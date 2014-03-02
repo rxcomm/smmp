@@ -106,9 +106,7 @@ p7.initState('my cool group name',
 
 participants = ('p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7')
 data_old = deepcopy(p0.state)
-counter = 0
 while True:
-    counter += 1
     try:
         os.system('clear')
         print '\x1b[;32m Ratchet Keys\x1b[0m'
@@ -142,13 +140,14 @@ while True:
 
         encrypter = randint(0,7)
 
-        if counter % 5 == 0:
+        resync = randint(0,3)
+        if resync == 0:
             exec('vnew, pVnew = p' + str(encrypter) + '.genKey()')
             exec('v = hashlib.sha256(p' + str(encrypter) + '.state["v"] + vnew).digest()')
             r = {}
             R = {}
             for i in range(len(participants)):
-                key = keys.Private(secret=hashlib.sha256(str(i).zfill(32)).digest())
+                exec('key = keys.Private(secret=hashlib.sha256(p' + str(i) + '.strxor("' + str(i) + '".zfill(32), p' + str(i) + '.state["v"])).digest())')
                 r[i] = key.private
                 R[i] = key.get_public().serialize()
             DHR = '\x00' * 32
