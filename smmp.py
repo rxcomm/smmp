@@ -237,8 +237,8 @@ class Participant:
 
     def resyncSend(self, sock):
         count = 0
-        while count < 10 * self.state['my_index'] + 1:
-            sleep(0.025)
+        while count < 20 * self.state['my_index'] + 1:
+            sleep(0.01)
             if not self.resync_required:
                 return 'Resync send message aborted'
             count += 1
