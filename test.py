@@ -140,7 +140,7 @@ while True:
 
         encrypter = randint(0,7)
 
-        resync = randint(0,3)
+        resync = randint(0,20)
         if resync == 0:
             exec('vnew, pVnew = p' + str(encrypter) + '.genKey()')
             exec('v = hashlib.sha256(p' + str(encrypter) + '.state["v"] + vnew).digest()')

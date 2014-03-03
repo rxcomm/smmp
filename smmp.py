@@ -252,17 +252,17 @@ class Participant:
             key = keys.Private(secret=hashlib.sha256(self.strxor(str(i).zfill(32), self.state['v'])).digest())
             r[i] = key.private
             R[i] = key.get_public().serialize()
-        self.ratchetKey = r[self.state['my_index']]
-        self.state['R'] = R
         DHR = '\x00' * 32
         for i in range(len(self.state['R'])):
-            DHR = self.strxor(DHR, self.state['R'][i])
+            DHR = self.strxor(DHR, R[i])
         RK = hashlib.sha256(DHR + self.genDH(v, DHR)).digest()
         HK = pbkdf2(RK, b'\x01', 10, prf='hmac-sha256')
         NHK = pbkdf2(RK, b'\x02', 10, prf='hmac-sha256')
         MK = pbkdf2(RK, b'\x03', 10, prf='hmac-sha256')
         if self.resync_required:
             self.resync_required = False
+            self.ratchetKey = r[self.state['my_index']]
+            self.state['R'] = R
             self.state['v'] = v
             self.state['RK'] = RK
             self.state['HK'] = HK
