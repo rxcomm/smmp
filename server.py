@@ -66,8 +66,11 @@ def receiveData(client, address, index):
                     with open('server.traffic.log', 'a') as f:
                         f.write(binascii.b2a_base64(data))
                 for i, item in client_list.iteritems():
-                    if (data[:3] != '998' and client != item) and (data[:3] == '999' or int(data[:3]) == i):
-                        item.send(data[3:] + 'EOP')
+                    try:
+                        if (data[:3] != '998' and client != item) and (data[:3] == '999' or int(data[:3]) == i):
+                            item.send(data[3:] + 'EOP')
+                    except ValueError:
+                        pass
 
 try:
     while True:
