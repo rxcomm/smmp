@@ -274,7 +274,6 @@ class Participant:
         return 'Resync send message aborted'
 
     def resyncReceive(self, ciphertext):
-        self.resync_required = False
         try:
             plaintext = self.dec(self.state['v'], ciphertext)
         except (DecodeError, ValueError):
@@ -288,19 +287,21 @@ class Participant:
                 key = keys.Private(secret=hashlib.sha256(self.strxor(str(i).zfill(32), self.state['v'])).digest())
                 r[i] = key.private
                 R[i] = key.get_public().serialize()
-            self.state['v'] = hashlib.sha256(self.state['v'] + plaintext[1:]).digest()
-            self.ratchetKey = r[self.state['my_index']]
-            self.state['R'] = R
-            DHR = '\x00' * 32
-            for i in range(len(self.state['R'])):
-                DHR = self.strxor(DHR, self.state['R'][i])
-            self.state['RK'] = hashlib.sha256(DHR +
-                       self.genDH(self.state['v'], DHR)).digest()
-            self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
-            self.state['NHK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
-            self.state['MK'] = pbkdf2(self.state['RK'], b'\x03', 10, prf='hmac-sha256')
-            self.state['digest'] = '\x00' * 32
-            return 'Ratchet resync message received - System resynced!\n'
+            if self.resync_required:
+                self.resync_required = False
+                self.state['v'] = hashlib.sha256(self.state['v'] + plaintext[1:]).digest()
+                self.ratchetKey = r[self.state['my_index']]
+                self.state['R'] = R
+                DHR = '\x00' * 32
+                for i in range(len(self.state['R'])):
+                    DHR = self.strxor(DHR, self.state['R'][i])
+                self.state['RK'] = hashlib.sha256(DHR +
+                           self.genDH(self.state['v'], DHR)).digest()
+                self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
+                self.state['NHK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
+                self.state['MK'] = pbkdf2(self.state['RK'], b'\x03', 10, prf='hmac-sha256')
+                self.state['digest'] = '\x00' * 32
+                return 'Ratchet resync message received - System resynced!\n'
 
 class BummerUndecryptable(Exception):
     def __init__(self):
