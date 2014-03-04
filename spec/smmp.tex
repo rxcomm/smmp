@@ -184,10 +184,10 @@ The following notation is used:
 \begin{itemize}
 \item $N$ is the total number of participants in the group (including the
 Organizer)
-\item $\oplus$ is the XOR operator
+\item $\oplus$ is the bitwise XOR operator
 \item $\{N_i\}$ is the set of all $N_i$ and $\{N_i\}_m = N_m$.
-\item $\oplus_{j \ne i} \, x_j$ means XOR of all $x_j$ except $x_i$.
-\item  $\oplus_i \, x_i$ means XOR of all $x_i$.
+\item $\oplus_{j \ne i} \, x_j$ means bitwise XOR of all $x_j$ except $x_i$.
+\item  $\oplus_i \, x_i$ means bitwise XOR of all $x_i$.
 \item $\mathcal{\hat{A}}_i$ is the ratchet state for
 participant $P_i$.
 \item $||$ is the concatenation operator
@@ -276,6 +276,9 @@ resync\_required = \textit{False}.
 \item The Organizer role is complete and all Organizer data
 is securely erased by participant $P_0$.
 \end{enumerate}
+Once key agreement is complete, the participants may wish to authenticate themselves to
+each other by using \textit{e.g.} a non-interactive zero-knowledge
+proof\cite{ref:blum}.
 
 \section{\label{sec:sending}Sending Messages}
 Participants wanting to send a message will proceed as follows:
@@ -539,6 +542,10 @@ Cryptology,} volume 950 of Lecture Notes in Computer Science, 1995.
 
 \bibitem{ref:pidgin} ``Pidgin," \url{https://www.pidgin.im}, accessed Feb. 27,
 2014.
+
+\bibitem{ref:blum} M. Blum, P. Feldman, and S. Micali, ``Non-Interactive
+Zero-Knowledge and Its Applications," \textit{ STOC 1988:Proceedings of the
+twentieth annual ACM symposium on Theory of computing}, pp. 103–112, ACM, 2008.
 
 \bibitem{ref:otr} ``Off the Record Messaging",
 \url{https://otr.cypherpunks.ca/}, accessed Feb. 22, 2014.
