@@ -287,8 +287,7 @@ class Participant:
                 key = keys.Private(secret=hashlib.sha256(self.strxor(str(i).zfill(32), self.state['v'])).digest())
                 r[i] = key.private
                 R[i] = key.get_public().serialize()
-            if self.resync_required:
-                self.resync_required = False
+            self.resync_required = False
             self.state['v'] = hashlib.sha256(self.state['v'] + plaintext[1:]).digest()
             self.ratchetKey = r[self.state['my_index']]
             self.state['R'] = R
