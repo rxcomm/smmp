@@ -422,7 +422,6 @@ if __name__ == '__main__':
                 R[i] = binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s public ratchet key: '))
         for i in range(num_users):
             if i != my_index:
-                print 'Handshake key for user '+str(my_index)+ ': '+str(k[my_index])
                 mackey = mypart.genDH(mypart.identityKey, identityKeys[i]) + \
                          mypart.genDH(mypart.ratchetKey, R[i]) + \
                          mypart.genDH(mypart.ratchetKey, identityKeys[i])
