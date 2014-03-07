@@ -8,6 +8,7 @@ import sys
 from time import time, sleep
 from passlib.utils.pbkdf2 import pbkdf2
 from curve25519 import keys
+from bd import BD
 
 user_path = os.path.expanduser('~')
 KEYRING = [user_path+'/.gnupg/pubring.gpg']
@@ -19,79 +20,38 @@ gpg = gnupg.GPG(gnupghome=user_path+'/.axolotl', gpgbinary=GPGBINARY, keyring=KE
                 '--personal-digest-preferences=sha256','--s2k-digest-algo=sha256'])
 gpg.encoding = 'latin-1'
 
-class Organizer:
-
-    def __init__(self, group_name):
-        self.group_name = group_name
-        self.org_num = 0
-        self.mode = True
-        self.state = {}
-        self.state['u'], self.state['pU'] = self.genKey()
-        self.state['w'], self.state['pW'] = self.genKey()
-
-    def strxor(self, s0, s1):
-        l = [chr(ord(a)^ord(b)) for a,b in zip(s0, s1)]
-        return ''.join (l)
-
-    def tripleDH(self, u, w, K, B):
-        return hashlib.sha256(self.genDH(u, K) + self.genDH(w, B) + self.genDH(w, K)).digest()
-
-    def genDH(self, a, B):
-        key = keys.Private(secret=a)
-        return key.get_shared_key(keys.Public(B))
-
-    def genKey(self):
-        key = keys.Private()
-        privkey = key.private
-        pubkey = key.get_public().serialize()
-        return privkey, pubkey
-
-    def initState(self, group_name, identityKeys, handshakeKeys, ratchetKeys, my_index=0):
-        """
-        Here group_name is the group name, identityKeys, handshakeKeys, and ratchetKeys
-        are dictionaries with key:value pairs equal to the participant index number
-        and the Key value.
-        """
-
-        self.group_size = len(identityKeys)
-
-        self.L = {}
-        for i in range(self.group_size):
-            self.L[i] = self.tripleDH(self.state['u'], self.state['w'],
-                                      identityKeys[i],
-                                      handshakeKeys[i])
-        self.G = {}
-        for i in range(self.group_size):
-            self.G[i] = self.genDH(self.state['w'], ratchetKeys[i]) # initialize G strings ;-)
-        for i in range(self.group_size):
-            for j in range(self.group_size):
-                if i != j:
-                    self.G[j] = self.strxor(self.G[j], self.L[i])
-
-        self.state = \
-               { 'group_name': self.group_name,
-                 'my_index': my_index,
-                 'pU': self.state['pU'],
-                 'pW': self.state['pW'],
-                 'R' : ratchetKeys,
-               }
-
-#######################################################################################
-
 class Participant:
 
-    def __init__(self, group_name):
+    def __init__(self, group_name, group_size, my_index):
         self.group_name = group_name
+        self.group_size = group_size
+        self.my_index = my_index
         self.mode = False
         self.state = {}
         self.identityKey, self.identityPKey = self.genKey()
-        self.handshakeKey, self.handshakePKey = self.genKey()
         self.ratchetKey, self.ratchetPKey = self.genKey()
         self.resync_required = False
+        self.bd = BD(self.group_size, self.my_index)
 
     def strxor(self, s0, s1):
         l = [chr(ord(a)^ord(b)) for a,b in zip(s0, s1)]
         return ''.join (l)
+
+    def s2l(self, s):
+        """
+        string to long
+        """
+        return long(binascii.hexlify(s), 16)
+
+    def l2s(self, n):
+        """
+        long to string
+        """
+        num = '%x' % n
+        if len(num) % 2:
+            num = '0' + num
+        return binascii.unhexlify(num)
+
 
     def tripleDH(self, k, b, U, W):
         return hashlib.sha256(self.genDH(k, U) + self.genDH(b, W) + self.genDH(k, W)).digest()
@@ -106,18 +66,31 @@ class Participant:
         pubkey = key.get_public().serialize()
         return privkey, pubkey
 
-    def initState(self, group_name, group_identityPKey, group_handshakePKey, group_ratchetKeys, group_size, G, my_index=0):
+    def initBD(self, identityKeys, handshakeKeys, ratchetKeys, signatures):
+        for i in range(self.group_size):
+            if i != self.my_index:
+                mac = hmac.new(self.tripleDH(self.identityKey, self.ratchetKey,
+                               identityKeys[i], ratchetKeys[i]),
+                               str(handshakeKeys[i]), hashlib.sha256).digest()
+                assert mac == signatures[i], 'Bad signature - identity does not match'
+        self.bd.round1(pubkeys = handshakeKeys)
+        x = {}
+        x[self.my_index] = self.bd.my_x
+        print 'Your round 2 key is '+binascii.b2a_base64(self.l2s(self.bd.my_x))
+        for i in range(self.group_size):
+            if i != self.my_index:
+                x[i] = self.s2l(binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s round 2 key: ')))
+        return self.bd.round2(round2keys=x)
+
+    def initState(self, group_name, identityKeys, handshakeKeys,
+                  ratchetKeys, signatures):
         """
         Here group_name is the group name, identityKeys, handshakeKeys, and ratchetKeys
         are dictionaries with key:value pairs equal to the participant index number
         and the Key value.
         """
+        mkey = self.initBD(identityKeys, handshakeKeys, ratchetKeys, signatures)
 
-        self.group_size = len(group_ratchetKeys)
-        mkey = hashlib.sha256(self.strxor(self.tripleDH(self.identityKey, self.handshakeKey,
-                              group_identityPKey, group_handshakePKey),
-                              self.strxor(G, self.genDH(self.ratchetKey,
-                              group_handshakePKey)))).digest()
         RK = pbkdf2(mkey, b'\x00', 10, prf='hmac-sha256')
         HK = pbkdf2(mkey, b'\x01', 10, prf='hmac-sha256')
         NHK = pbkdf2(mkey, b'\x02', 10, prf='hmac-sha256')
@@ -126,12 +99,13 @@ class Participant:
 
         self.state = \
                { 'group_name': self.group_name,
-                 'my_index': my_index,
+                 'my_index': self.my_index,
                  'RK': RK,
                  'HK': HK,
                  'NHK': NHK,
                  'MK': MK,
-                 'R' : group_ratchetKeys,
+                 'initR' : ratchetKeys,
+                 'R' : ratchetKeys,
                  'v' : v,
                  'digest' : '\x00' * 32
                }
@@ -249,13 +223,13 @@ class Participant:
         R = {}
         r = {}
         for i in range(len(self.state['R'])):
-            key = keys.Private(secret=hashlib.sha256(self.strxor(str(i).zfill(32), self.state['v'])).digest())
+            key = keys.Private(secret=hashlib.sha256(self.strxor(chr(i).rjust(32,chr(0)), self.state['v'])).digest())
             r[i] = key.private
             R[i] = key.get_public().serialize()
         DHR = '\x00' * 32
         for i in range(len(self.state['R'])):
             DHR = self.strxor(DHR, R[i])
-        RK = hashlib.sha256(DHR + self.genDH(v, DHR)).digest()
+        RK = hashlib.sha256(v + self.genDH(v, DHR)).digest()
         HK = pbkdf2(RK, b'\x01', 10, prf='hmac-sha256')
         NHK = pbkdf2(RK, b'\x02', 10, prf='hmac-sha256')
         MK = pbkdf2(RK, b'\x03', 10, prf='hmac-sha256')
@@ -284,7 +258,7 @@ class Participant:
             R = {}
             r = {}
             for i in range(len(self.state['R'])):
-                key = keys.Private(secret=hashlib.sha256(self.strxor(str(i).zfill(32), self.state['v'])).digest())
+                key = keys.Private(secret=hashlib.sha256(self.strxor(chr(i).rjust(32,chr(0)), self.state['v'])).digest())
                 r[i] = key.private
                 R[i] = key.get_public().serialize()
             self.resync_required = False
@@ -294,7 +268,7 @@ class Participant:
             DHR = '\x00' * 32
             for i in range(len(self.state['R'])):
                 DHR = self.strxor(DHR, self.state['R'][i])
-            self.state['RK'] = hashlib.sha256(DHR +
+            self.state['RK'] = hashlib.sha256(self.state['v'] +
                        self.genDH(self.state['v'], DHR)).digest()
             self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
             self.state['NHK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')

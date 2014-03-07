@@ -7,13 +7,16 @@ import threading
 import sys
 import curses
 import gnupg
+import hmac
+import hashlib
 from curses.textpad import Textbox
 from random import randint
 from contextlib import contextmanager
 from time import sleep
-from smmp import Participant, Organizer, BummerUndecryptable, BadHMAC, BadDIGEST
+from smmp import Participant, BummerUndecryptable, BadHMAC, BadDIGEST
 from StringIO import StringIO
 from getpass import getpass
+from bd import BD
 
 """
 Standalone multi-party chat script using AES256 encryption with
@@ -72,13 +75,8 @@ def socketcontext(*args, **kwargs):
     s.close()
 
 @contextmanager
-def organizer(group_name):
-    a = Organizer(group_name)
-    yield a
-
-@contextmanager
-def participant(group_name):
-    a = Participant(group_name)
+def participant(group_name, group_size, my_index):
+    a = Participant(group_name, group_size, my_index)
     yield a
 
 @contextmanager
@@ -187,6 +185,15 @@ def usage():
     print ' -c: start a chat in client mode'
     print ' -g: generate a key database for a nick'
     exit()
+
+def s2l(s):
+    return long(binascii.hexlify(s), 16)
+
+def l2s(n):
+    num = '%x' % n
+    if len(num) % 2:
+        num = '0' + num
+    return binascii.unhexlify(num)
 
 def receiveThread(sock, mypart, stdscr, input_win, output_win, title_win):
     global screen_needs_update
@@ -372,12 +379,14 @@ if __name__ == '__main__':
         PORT = 1025 + randint(0, 64510)
         print 'PORT is ' + str(PORT)
 
+    k = {}
+    x = {}
     R = {}
     HOST = raw_input('Enter the server: ')
 
     ans = raw_input('Do you want to load a state? y/N ')
     if ans == 'y':
-        with participant('dummy') as mypart:
+        with participant('dummy', 0, 0) as mypart:
             loadState(mypart)
             myname = raw_input('What is your name? ')
             print 'Connecting to ' + HOST + '...'
@@ -389,56 +398,41 @@ if __name__ == '__main__':
 
     group_name = raw_input('What is the group name? ')
     num_users = int(raw_input('Input total number of participants (including you): '))
-    with participant(group_name) as mypart:
-        ans = raw_input('Are you the group organizer? y/N ')
-        if ans == 'y':
-            with organizer(group_name) as org:
-                useridkeylist = {}
-                userhskeylist = {}
-                userrtkeylist = {}
-                for i in range(1, num_users):
-                    useridkeylist[i] = binascii.a2b_base64(raw_input('User '+str(i)+' ID key: '))
-                    userhskeylist[i] = binascii.a2b_base64(raw_input('User '+str(i)+' handshake key: '))
-                    userrtkeylist[i] = binascii.a2b_base64(raw_input('User '+str(i)+' ratchet key: '))
-                useridkeylist[0] = mypart.identityPKey
-                userhskeylist[0] = mypart.handshakePKey
-                userrtkeylist[0] = mypart.ratchetPKey
-                org.initState(group_name, useridkeylist, userhskeylist, userrtkeylist, 0)
-                print 'The following items can be passed publicly to all participants'
-                print 'The public group identity key: '+binascii.b2a_base64(org.state['pU']).strip()
-                print 'The public group handshake key: '+binascii.b2a_base64(org.state['pW']).strip()
-                print 'The participant public ratchet keys are:'
-                for key, item in org.state['R'].iteritems():
-                    print 'Participant '+str(key)+' public ratchet key: '+binascii.b2a_base64(item).strip()
-                for key, item in org.G.iteritems():
-                    if key != 0:
-                        print 'G for user '+str(key)+' is: '+ binascii.b2a_base64(item).strip()
-                pU = org.state['pU']
-                pW = org.state['pW']
-                G0 = org.G[0]
-            mypart.initState(group_name, pU, pW, userrtkeylist, num_users, G0, my_index= 0)
-            ans = raw_input('When everyone has the group data, hit <RETURN>')
-        else:
-            print 'Your public identity key is '+binascii.b2a_base64(mypart.identityPKey)
-            print 'Your public handshake key is '+binascii.b2a_base64(mypart.handshakePKey)
-            print 'Your public ratchet key is '+binascii.b2a_base64(mypart.ratchetPKey)
-            print 'The following required information will be provided by the group organizer'
-            my_index = int(raw_input('Input your user number: '))
-            group_identityPKey = binascii.a2b_base64(raw_input('Input the group identity key: '))
-            group_handshakePKey = binascii.a2b_base64(raw_input('Input the group handshake key: '))
-            G = binascii.a2b_base64(raw_input('Input G: '))
-            R[my_index] = mypart.ratchetPKey
-            for i in range(num_users):
-                if i != my_index:
-                    R[i] = binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s ratchet key: '))
-            mypart.initState(group_name, group_identityPKey, group_handshakePKey, R, num_users, G, my_index=my_index)
+    my_index = int(raw_input('Input your participant number: '))
+    with participant(group_name, num_users, my_index) as mypart:
+        print 'Your public identity key is: '+binascii.b2a_base64(mypart.identityPKey)
+        print 'Your public handshake key is: '+binascii.b2a_base64(l2s(mypart.bd.pubKey))
+        print 'Your public ratchet key is: '+binascii.b2a_base64(mypart.ratchetPKey)
+        identityKeys = {}
+        k = {}
+        R = {}
+        signatures = {}
+        identityKeys[my_index] = mypart.identityPKey
+        k[my_index] = mypart.bd.pubKey
+        R[my_index] = mypart.ratchetPKey
+        for i in range(num_users):
+            if i != my_index:
+                identityKeys[i] = binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s public identity key: '))
+                k[i] = s2l(binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s public handshake key: ')))
+                R[i] = binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s public ratchet key: '))
+        for i in range(num_users):
+            if i != my_index:
+                print 'Handshake key for user '+str(my_index)+ ': '+str(k[my_index])
+                mackey = mypart.genDH(mypart.identityKey, identityKeys[i]) + \
+                         mypart.genDH(mypart.ratchetKey, R[i]) + \
+                         mypart.genDH(mypart.ratchetKey, identityKeys[i])
+                mackey = hashlib.sha256(mackey).digest()
+                mac = hmac.new(mackey, str(k[my_index]), hashlib.sha256).digest()
+                print 'Send this key signature to user '+str(i)+': '+binascii.b2a_base64(mac)
+        for i in range(num_users):
+            if i != my_index:
+                signatures[i] = binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s key signature: '))
+        mypart.initState(group_name, identityKeys, k, R, signatures)
 
-
-
-        myname = raw_input('What is your name? ')
-        print 'Connecting to ' + HOST + '...'
-        with socketcontext(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((HOST, PORT))
-            s.send(str(mypart.state['my_index']).zfill(3) + 'START')
-            chatThread(s, mypart, myname)
+    myname = raw_input('What is your name? ')
+    print 'Connecting to ' + HOST + '...'
+    with socketcontext(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((HOST, PORT))
+        s.send(str(mypart.state['my_index']).zfill(3) + 'START')
+        chatThread(s, mypart, myname)
 
