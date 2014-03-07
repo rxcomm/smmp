@@ -5,6 +5,7 @@ import hmac
 import gnupg
 import os
 import sys
+from copy import deepcopy
 from time import time, sleep
 from passlib.utils.pbkdf2 import pbkdf2
 from curve25519 import keys
@@ -72,7 +73,7 @@ class Participant:
                 mac = hmac.new(self.tripleDH(self.identityKey, self.ratchetKey,
                                identityKeys[i], ratchetKeys[i]),
                                str(handshakeKeys[i]), hashlib.sha256).digest()
-                assert mac == signatures[i], 'Bad signature - identity does not match'
+                assert mac == signatures[i], 'Bad signature - identity does not match for participant '+str(i)
         self.bd.round1(pubkeys = handshakeKeys)
         x = {}
         x[self.my_index] = self.bd.my_x
@@ -90,6 +91,7 @@ class Participant:
         and the Key value.
         """
         mkey = self.initBD(identityKeys, handshakeKeys, ratchetKeys, signatures)
+        del self.bd
 
         RK = pbkdf2(mkey, b'\x00', 10, prf='hmac-sha256')
         HK = pbkdf2(mkey, b'\x01', 10, prf='hmac-sha256')
@@ -104,7 +106,8 @@ class Participant:
                  'HK': HK,
                  'NHK': NHK,
                  'MK': MK,
-                 'initR' : ratchetKeys,
+                 'initpubR' : deepcopy(ratchetKeys),
+                 'initr' : deepcopy(self.ratchetKey),
                  'R' : ratchetKeys,
                  'v' : v,
                  'digest' : '\x00' * 32
@@ -220,23 +223,17 @@ class Participant:
         msg1 = self.enc(self.state['v'], '\x00' + vnew)
         mac = hmac.new(self.state['v'], msg1, hashlib.sha256).digest()
         v = hashlib.sha256(self.state['v'] + vnew).digest()
-        R = {}
-        r = {}
-        for i in range(len(self.state['R'])):
-            key = keys.Private(secret=hashlib.sha256(self.strxor(chr(i).rjust(32,chr(0)), self.state['v'])).digest())
-            r[i] = key.private
-            R[i] = key.get_public().serialize()
         DHR = '\x00' * 32
         for i in range(len(self.state['R'])):
-            DHR = self.strxor(DHR, R[i])
+            DHR = self.strxor(DHR, self.state['initpubR'][i])
         RK = hashlib.sha256(v + self.genDH(v, DHR)).digest()
         HK = pbkdf2(RK, b'\x01', 10, prf='hmac-sha256')
         NHK = pbkdf2(RK, b'\x02', 10, prf='hmac-sha256')
         MK = pbkdf2(RK, b'\x03', 10, prf='hmac-sha256')
         if self.resync_required:
             self.resync_required = False
-            self.ratchetKey = r[self.state['my_index']]
-            self.state['R'] = R
+            self.ratchetKey = deepcopy(self.state['initr'])
+            self.state['R'] = deepcopy(self.state['initpubR'])
             self.state['v'] = v
             self.state['RK'] = RK
             self.state['HK'] = HK
@@ -255,16 +252,10 @@ class Participant:
         if plaintext[:1] != '\x00' or len(plaintext) != 33 or ciphertext is None:
             raise BummerUndecryptable
         else:
-            R = {}
-            r = {}
-            for i in range(len(self.state['R'])):
-                key = keys.Private(secret=hashlib.sha256(self.strxor(chr(i).rjust(32,chr(0)), self.state['v'])).digest())
-                r[i] = key.private
-                R[i] = key.get_public().serialize()
             self.resync_required = False
             self.state['v'] = hashlib.sha256(self.state['v'] + plaintext[1:]).digest()
-            self.ratchetKey = r[self.state['my_index']]
-            self.state['R'] = R
+            self.ratchetKey = deepcopy(self.state['initr'])
+            self.state['R'] = deepcopy(self.state['initpubR'])
             DHR = '\x00' * 32
             for i in range(len(self.state['R'])):
                 DHR = self.strxor(DHR, self.state['R'][i])
