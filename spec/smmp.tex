@@ -400,7 +400,7 @@ will then proceed as follows:
 \item Participant $P_j$ updates his/her ratchet state
 $\mathcal{\hat{A}}_j$ as follows:\\
 $\{R_i\} = \{\mathrm{ECDH}(r_i, X)\}$, \\
-$\mathrm{RK} = \mathrm{hash}(\oplus_i \, R_i \, || \, \mathrm{ECDH}(v, \oplus_i
+$\mathrm{RK} = \mathrm{hash}(v \, || \, \mathrm{ECDH}(v, \oplus_i
 \, R_i))$, \\
 $\mathrm{HK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
 $\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
@@ -451,7 +451,7 @@ step.
 $\mathcal{\hat{A}}_j$ as follows:\\
 $v = \mathrm{hash}(v \, || \, v^{new})$, \\
 $\{R_i\} = \{\mathrm{ECDH}(r_i, X)\}$, \\
-$\mathrm{RK} = \mathrm{hash}(\oplus_i \, R_i \, || \, \mathrm{ECDH}(v, \oplus_i
+$\mathrm{RK} = \mathrm{hash}(v \, || \, \mathrm{ECDH}(v, \oplus_i
 \, R_i))$, \\
 $\mathrm{HK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
 $\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
