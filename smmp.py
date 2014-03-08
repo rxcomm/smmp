@@ -220,9 +220,12 @@ class Participant:
                 return 'Resync send message aborted'
             count += 1
         vnew, pVnew = self.genKey()
-        msg1 = self.enc(self.state['v'], '\x00' + vnew)
+        rnew, pRnew = self.genKey()
+        msg1 = self.enc(self.state['v'], '\x00' + str(self.state['my_index']).zfill(3) + vnew + pRnew)
         mac = hmac.new(self.state['v'], msg1, hashlib.sha256).digest()
         v = hashlib.sha256(self.state['v'] + vnew).digest()
+        self.state['initr'] = rnew
+        self.state['initpubR'][self.state['my_index']] = pRnew
         DHR = '\x00' * 32
         for i in range(len(self.state['R'])):
             DHR = self.strxor(DHR, self.state['initpubR'][i])
@@ -249,11 +252,12 @@ class Participant:
             plaintext = self.dec(self.state['v'], ciphertext)
         except (DecodeError, ValueError):
             raise BummerUndecryptable
-        if plaintext[:1] != '\x00' or len(plaintext) != 33 or ciphertext is None:
+        if plaintext[:1] != '\x00' or len(plaintext) != 68 or ciphertext is None:
             raise BummerUndecryptable
         else:
             self.resync_required = False
-            self.state['v'] = hashlib.sha256(self.state['v'] + plaintext[1:]).digest()
+            self.state['v'] = hashlib.sha256(self.state['v'] + plaintext[4:36]).digest()
+            self.state['initpubR'][int(plaintext[1:4])] = plaintext[36:68]
             self.ratchetKey = deepcopy(self.state['initr'])
             self.state['R'] = deepcopy(self.state['initpubR'])
             DHR = '\x00' * 32
