@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-from smmp import Organizer, Participant, BummerUndecryptable, BadHMAC
+from smmp import Participant, BummerUndecryptable, BadHMAC
+from contextlib import contextmanager
 from curve25519 import keys
 from passlib.utils.pbkdf2 import pbkdf2
 from random import randint
@@ -9,6 +10,25 @@ from copy import deepcopy
 import os
 import binascii
 import hashlib
+import gnupg
+from StringIO import StringIO
+
+@contextmanager
+def decFile(file_name, passphrase):
+    KEYRING = './keyring.gpg'
+    SECRET_KEYRING = './secring.gpg'
+    GPGBINARY = 'gpg'
+    gpg = gnupg.GPG(gnupghome='.', gpgbinary=GPGBINARY, keyring=KEYRING,
+                    secret_keyring=SECRET_KEYRING, options=['--throw-keyids',
+                    '--personal-digest-preferences=sha256','--s2k-digest-algo=sha256'])
+    gpg.encoding = 'utf-8'
+    with open(file_name, 'rb') as f:
+        ciphertext = f.read()
+    plaintext = gpg.decrypt(ciphertext, passphrase=passphrase, always_trust=True)
+    a = StringIO(plaintext)
+    a.seek(0)
+    yield a
+    a.close()
 
 def strxor(s0, s1):
     l = [chr(ord(a)^ord(b)) for a,b in zip(s0, s1)]
@@ -20,89 +40,49 @@ def hilite(text, c=False):
         attr.append('41')
     return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), text)
 
-org = Organizer('my cool group name')
+def loadState(mypart, num):
+    file_name = 'ex_data/example'+str(num)+'.dat'
+    passphrase = '1'
+    with decFile(file_name, passphrase) as f:
+        data = f.read()
+        data_list = data.split()
+        mypart.state['HK'] = binascii.a2b_base64(data_list[0])
+        mypart.state['MK'] = binascii.a2b_base64(data_list[1])
+        mypart.state['NHK'] = binascii.a2b_base64(data_list[2])
+        mypart.state['RK'] = binascii.a2b_base64(data_list[3])
+        mypart.state['v'] = binascii.a2b_base64(data_list[4])
+        mypart.state['group_name'] = data_list[5]
+        mypart.state['my_index'] = int(data_list[6])
+        mypart.group_size = int(data_list[7])
+        resync_required = data_list[8]
+        mypart.resync_required = True if resync_required == '1' else False
+        mypart.ratchetKey = binascii.a2b_base64(data_list[9])
+        mypart.state['initr'] = binascii.a2b_base64(data_list[10])
+        mypart.state['digest'] = binascii.a2b_base64(data_list[11])
+        mypart.state['R'] = {}
+        mypart.state['initpubR'] = {}
+        for i in range(mypart.group_size):
+            mypart.state['initpubR'][i] = binascii.a2b_base64(data_list[12+i])
+        for i in range(mypart.group_size):
+            mypart.state['R'][i] = binascii.a2b_base64(data_list[12+mypart.group_size+i])
 
-p0 = Participant('my cool group name')
-p1 = Participant('my cool group name')
-p2 = Participant('my cool group name')
-p3 = Participant('my cool group name')
-p4 = Participant('my cool group name')
-p5 = Participant('my cool group name')
-p6 = Participant('my cool group name')
-p7 = Participant('my cool group name')
+p0 = Participant('my cool group name', 8, 0)
+p1 = Participant('my cool group name', 8, 1)
+p2 = Participant('my cool group name', 8, 2)
+p3 = Participant('my cool group name', 8, 3)
+p4 = Participant('my cool group name', 8, 4)
+p5 = Participant('my cool group name', 8, 5)
+p6 = Participant('my cool group name', 8, 6)
+p7 = Participant('my cool group name', 8, 7)
 
-org.initState('my cool group name',
-              {0: p0.identityPKey, 1: p1.identityPKey, 2: p2.identityPKey, 3: p3.identityPKey,
-               4: p4.identityPKey, 5: p5.identityPKey, 6: p6.identityPKey, 7: p7.identityPKey},
-              {0: p0.handshakePKey, 1: p1.handshakePKey, 2: p2.handshakePKey, 3: p3.handshakePKey,
-               4: p4.handshakePKey, 5: p5.handshakePKey, 6: p6.handshakePKey, 7: p7.handshakePKey},
-              {0: p0.ratchetPKey, 1: p1.ratchetPKey, 2: p2.ratchetPKey, 3: p3.ratchetPKey,
-               4: p4.ratchetPKey, 5: p5.ratchetPKey, 6: p6.ratchetPKey, 7: p7.ratchetPKey},
-              my_index=0)
-
-p0.initState('my cool group name',
-             org.state['pU'],
-             org.state['pW'],
-             deepcopy(org.state['R']),
-             8,
-             org.G[0],
-             my_index=0)
-
-p1.initState('my cool group name',
-             org.state['pU'],
-             org.state['pW'],
-             deepcopy(org.state['R']),
-             8,
-             org.G[1],
-             my_index=1)
-
-p2.initState('my cool group name',
-             org.state['pU'],
-             org.state['pW'],
-             deepcopy(org.state['R']),
-             8,
-             org.G[2],
-             my_index=2)
-
-p3.initState('my cool group name',
-             org.state['pU'],
-             org.state['pW'],
-             deepcopy(org.state['R']),
-             8,
-             org.G[3],
-             my_index=3)
-
-p4.initState('my cool group name',
-             org.state['pU'],
-             org.state['pW'],
-             deepcopy(org.state['R']),
-             8,
-             org.G[4],
-             my_index=4)
-
-p5.initState('my cool group name',
-             org.state['pU'],
-             org.state['pW'],
-             deepcopy(org.state['R']),
-             8,
-             org.G[5],
-             my_index=5)
-
-p6.initState('my cool group name',
-             org.state['pU'],
-             org.state['pW'],
-             deepcopy(org.state['R']),
-             8,
-             org.G[6],
-             my_index=6)
-
-p7.initState('my cool group name',
-             org.state['pU'],
-             org.state['pW'],
-             deepcopy(org.state['R']),
-             8,
-             org.G[7],
-             my_index=7)
+loadState(p0, 0)
+loadState(p1, 1)
+loadState(p2, 2)
+loadState(p3, 3)
+loadState(p4, 4)
+loadState(p5, 5)
+loadState(p6, 6)
+loadState(p7, 7)
 
 participants = ('p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7')
 data_old = deepcopy(p0.state)
@@ -129,6 +109,10 @@ while True:
                     pass
                 elif key == 'my_index':
                     pass
+                elif key == 'initr':
+                    pass
+                elif key == 'initpubR':
+                    pass
                 elif key == 'digest':
                     print 'dgt: '+hilite(binascii.b2a_base64(p0.state[key]).strip(), chg)
                 else:
@@ -140,27 +124,26 @@ while True:
 
         encrypter = randint(0,7)
 
-        resync = randint(0,20)
+        resync = randint(0,3)
         if resync == 0:
             exec('vnew, pVnew = p' + str(encrypter) + '.genKey()')
+            exec('rnew, pRnew = p' + str(encrypter) + '.genKey()')
             exec('v = hashlib.sha256(p' + str(encrypter) + '.state["v"] + vnew).digest()')
-            r = {}
-            R = {}
+            exec('p' + str(encrypter) + '.state["initr"] = deepcopy(rnew)')
             for i in range(len(participants)):
-                exec('key = keys.Private(secret=hashlib.sha256(p' + str(i) + '.strxor("' + str(i) + '".zfill(32), p' + str(i) + '.state["v"])).digest())')
-                r[i] = key.private
-                R[i] = key.get_public().serialize()
-            DHR = '\x00' * 32
+                exec('p' + str(i) + '.state["initpubR"][encrypter] = deepcopy(pRnew)')
+            DHR = ''
             for i in range(len(participants)):
-                DHR = strxor(DHR, R[i])
+                DHR = DHR + p0.state['initpubR'][i]
+            DHR = hashlib.sha256(DHR).digest()
             exec('RK = hashlib.sha256(DHR + p' + str(encrypter) + '.genDH(v, DHR)).digest()')
             HK = pbkdf2(RK, b'\x01', 10, prf='hmac-sha256')
             NHK = pbkdf2(RK, b'\x02', 10, prf='hmac-sha256')
             MK = pbkdf2(RK, b'\x03', 10, prf='hmac-sha256')
             for i in range(len(participants)):
-                exec('p' + str(i) + '.ratchetKey = r[i]')
+                exec('p' + str(i) + '.ratchetKey = deepcopy(p' + str(i) + '.state["initr"])')
                 exec('p' + str(i) + '.state["v"] = deepcopy(v)')
-                exec('p' + str(i) + '.state["R"] = deepcopy(R)')
+                exec('p' + str(i) + '.state["R"] = deepcopy(p' + str(i) + '.state["initpubR"])')
                 exec('p' + str(i) + '.state["RK"] = deepcopy(RK)')
                 exec('p' + str(i) + '.state["HK"] = deepcopy(HK)')
                 exec('p' + str(i) + '.state["NHK"] = deepcopy(NHK)')
