@@ -135,9 +135,9 @@ class Participant:
                 messages[i] = '998'
         self.ratchetKey = rnew
         self.state['R'][self.state['my_index']] = Rnew
-        DHR = '\x00' * 32
+        DHR = ''
         for i in range(self.group_size):
-            DHR = self.strxor(DHR, self.genDH(self.state['v'], self.state['R'][i]))
+            DHR = DHR + self.genDH(self.state['v'], self.state['R'][i])
         DHR = hashlib.sha256(DHR).digest()
         self.state['RK'] = hashlib.sha256(self.state['RK'] +
                    self.genDH(self.state['v'], DHR)).digest()
@@ -179,9 +179,9 @@ class Participant:
         self.state['digest'] = self.strxor(hashlib.sha256(body).digest(), self.state['digest'])
         otp = self.strxor(hashlib.sha256(self.genDH(self.ratchetKey, self.state['R'][Pnum])).digest(), self.state['digest'])
         self.state['R'][Pnum] = self.strxor(header[3:35], otp)
-        DHR = '\x00' * 32
+        DHR = ''
         for i in range(self.group_size):
-            DHR = self.strxor(DHR, self.genDH(self.state['v'], self.state['R'][i]))
+            DHR = DHR + self.genDH(self.state['v'], self.state['R'][i])
         DHR = hashlib.sha256(DHR).digest()
         self.state['RK'] = hashlib.sha256(self.state['RK'] +
                    self.genDH(self.state['v'], DHR)).digest()
@@ -228,9 +228,10 @@ class Participant:
         v = hashlib.sha256(self.state['v'] + vnew).digest()
         self.state['initr'] = rnew
         self.state['initpubR'][self.state['my_index']] = pRnew
-        DHR = '\x00' * 32
+        DHR = ''
         for i in range(len(self.state['R'])):
-            DHR = self.strxor(DHR, self.state['initpubR'][i])
+            DHR = DHR + self.state['initpubR'][i]
+        DHR = hashlib.sha256(DHR).digest()
         RK = hashlib.sha256(v + self.genDH(v, DHR)).digest()
         HK = pbkdf2(RK, b'\x01', 10, prf='hmac-sha256')
         NHK = pbkdf2(RK, b'\x02', 10, prf='hmac-sha256')
@@ -262,9 +263,10 @@ class Participant:
             self.state['initpubR'][int(plaintext[1:4])] = plaintext[36:68]
             self.ratchetKey = deepcopy(self.state['initr'])
             self.state['R'] = deepcopy(self.state['initpubR'])
-            DHR = '\x00' * 32
+            DHR = ''
             for i in range(len(self.state['R'])):
-                DHR = self.strxor(DHR, self.state['R'][i])
+                DHR = DHR + self.state['R'][i]
+            DHR = hashlib.sha256(DHR).digest()
             self.state['RK'] = hashlib.sha256(self.state['v'] +
                        self.genDH(self.state['v'], DHR)).digest()
             self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
