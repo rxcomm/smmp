@@ -406,7 +406,7 @@ if __name__ == '__main__':
     my_index = int(raw_input('Input your participant number: '))
     with participant(group_name, num_users, my_index) as mypart:
         print 'Your public identity key is: '+binascii.b2a_base64(mypart.identityPKey)
-        print 'Your public handshake key is: '+binascii.b2a_base64(l2s(mypart.bd.pubKey))
+        #print 'Your public handshake key is: '+binascii.b2a_base64(l2s(mypart.bd.pubKey))
         print 'Your public ratchet key is: '+binascii.b2a_base64(mypart.ratchetPKey)
         identityKeys = {}
         k = {}
@@ -418,7 +418,6 @@ if __name__ == '__main__':
         for i in range(num_users):
             if i != my_index:
                 identityKeys[i] = binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s public identity key: '))
-                k[i] = s2l(binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s public handshake key: ')))
                 R[i] = binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s public ratchet key: '))
         for i in range(num_users):
             if i != my_index:
@@ -427,11 +426,11 @@ if __name__ == '__main__':
                          mypart.genDH(mypart.ratchetKey, identityKeys[i])
                 mackey = hashlib.sha256(mackey).digest()
                 mac = hmac.new(mackey, str(k[my_index]), hashlib.sha256).digest()
-                print 'Send this key signature to user '+str(i)+': '+binascii.b2a_base64(mac)
+                print 'Send this signed public handshake key to user '+str(i)+': '+binascii.b2a_base64(l2s(k[my_index])+mac)
         for i in range(num_users):
             if i != my_index:
-                signatures[i] = binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s key signature: '))
-        mypart.initState(group_name, identityKeys, k, R, signatures)
+                k[i] = raw_input('Input user '+str(i)+'\'s signed public handshake key: ')
+        mypart.initState(group_name, identityKeys, k, R)
 
     myname = raw_input('What is your name? ')
     print 'Connecting to ' + HOST + '...'

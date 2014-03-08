@@ -67,13 +67,15 @@ class Participant:
         pubkey = key.get_public().serialize()
         return privkey, pubkey
 
-    def initBD(self, identityKeys, handshakeKeys, ratchetKeys, signatures):
+    def initBD(self, identityKeys, handshakeKeys, ratchetKeys):
         for i in range(self.group_size):
             if i != self.my_index:
+                sent_mac = binascii.a2b_base64(handshakeKeys[i])[-32:]
+                handshakeKeys[i] = self.s2l(binascii.a2b_base64(handshakeKeys[i])[:-32])
                 mac = hmac.new(self.tripleDH(self.identityKey, self.ratchetKey,
                                identityKeys[i], ratchetKeys[i]),
                                str(handshakeKeys[i]), hashlib.sha256).digest()
-                assert mac == signatures[i], 'Bad signature - identity does not match for participant '+str(i)
+                assert mac == sent_mac, 'Bad signature - identity does not match for participant '+str(i)
         self.bd.round1(pubkeys = handshakeKeys)
         x = {}
         x[self.my_index] = self.bd.my_x
@@ -84,13 +86,13 @@ class Participant:
         return self.bd.round2(round2keys=x)
 
     def initState(self, group_name, identityKeys, handshakeKeys,
-                  ratchetKeys, signatures):
+                  ratchetKeys):
         """
         Here group_name is the group name, identityKeys, handshakeKeys, and ratchetKeys
         are dictionaries with key:value pairs equal to the participant index number
         and the Key value.
         """
-        mkey = self.initBD(identityKeys, handshakeKeys, ratchetKeys, signatures)
+        mkey = self.initBD(identityKeys, handshakeKeys, ratchetKeys)
         del self.bd
 
         RK = pbkdf2(mkey, b'\x00', 10, prf='hmac-sha256')
