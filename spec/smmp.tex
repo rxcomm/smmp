@@ -50,12 +50,14 @@ We describe a new secure, multi-party, synchronous communication protocol.
 The protocol follows a peer-to-peer model and provides perfect forward
 secrecy, perfect future secrecy, and plausible deniability for participants in
 the conversation, as long as at least two participants are honest.
-The protocol uses the elliptic-curve Diffie-Hellman key agreement
-protocol to generate a set of shared secrets between a group of
-participants. The group is initially formed by an Organizer.
-The Organizer role is abandoned when key agreement is accomplished, leaving
-the original organizer as a one of $N$ peers in the messaging network.
-All setup operations prior to key agreement can take place over an insecure
+The protocol uses the Burmester-Desmedt group key agreement
+protocol to generate a shared secret between a group of participants.
+Each conversation participant is authenticated via a triple Diffie-Hellman
+signing mechanism that occurs during group key agreement.
+Individual header and message keys are updated after receipt of each message by incorporating
+additional random key material distributed by the sending participant.
+No security requirements are imposed on the underlying transport layer.
+All setup operations prior to group key agreement can take place over an insecure
 channel.
 \end{abstract}
 
@@ -75,41 +77,37 @@ confirm that they were receiving unmodified copies of all messages.
 A further attempt to solve this problem\cite{ref:goldberg} was incomplete
 because of the lack of a simple, secure key-agreement
 strategy. Work on the problem
-continues to date, most notably with\cite{ref:cryptocat}, however the
-key-agreement problem remains unsolved. Liu \textit{et.al.}\cite{ref:liu}
+continues to date, most notably with\cite{ref:cryptocat}.
+Liu \textit{et.al.}\cite{ref:liu}
 recently improved the security of GOTR/mpOTR using a Burmester-Desmedt group
-key agreement mechanism.
+key agreement mechanism imposed on top of a network comprised of binary
+encrypted channels between participants.
 
 In this paper, we describe a novel secure multi-party messaging protocol with a
 simple key-agreement algorithm that provides perfect forward secrecy (PFS),
 perfect future secrecy (PFuS),
 and plausible deniability (PD) for participants in a group conversation. Our protocol
-is a peer-to-peer protocol, whereby each
-participant (peer) contributes new
-key material to the group key set with each message sent. The group is
-initially constituted by an Organizer. Following the formation of the group, the
-Organizer role is abandoned and the initial Organizer assumes a peer role, the
-same as all other Participants.
+is a peer-to-peer protocol, whereby each participant (peer) contributes new
+key material to the group key set with each message sent.
+This key-update mechanism is called a ratchet.
+In contrast to the various mpOTR/GOTR proposals, no constraints on the security
+of the underlying transport layer are required.
 
 \section{\label{sec:keypoints}Key Points}
 \begin{itemize}
-\item Each group key agreement is facilitated by an Organizer, who is also
-participant $P_0$. Following the key agreement stage, the Organizer is no longer
-required. The Organizer data is securely deleted and the Participant
-$P_0$ role is that of a peer like any other
-participant.
-\item Elliptic curve Diffie-Hellman key operations are performed on curve25519
-with 32 byte
-public and private keys.
+\item Burmester-Desmedt\cite{ref:burmester} group key agreement
+takes place using finite-field, cyclic-group
+Diffie-Hellman key agreement as the underlying protocol.
+\item During the conversation, elliptic curve Diffie-Hellman key operations
+are performed, minimizing the required key-exchange bandwidth.
 \item The protocol is synchronous. A method for resynchronizing those
 participants that lose synchronization due to lost packets from collisions or
 transport failure is included in the protocol.
 \item Group setup is via an insecure channel.
-\item Putative participants authenticate to the Organizer, prior to
-activation of the group protocol.
-\item Participants may not be added to the group. This would
-require a reinitialization of the group secrets. A Participant may leave the
-group.
+\item No security constraints are imposed on the underlying transport layer.
+\item Participants may be added to the group via a reinitialization of the
+group secret. A participant may leave the group by simply stopping
+participation and not updating his ratchet state.
 \item A uniform message transcript is assured over all participants via a
 conversation digest that is updated with each message. If the digest does not
 match what a receiver expects, a resynchronization of the protocol is requested.
@@ -148,8 +146,9 @@ attacker access to only one message. Following the conversation requires a new
 key compromise with each message sent.
 
 The first proposal for a secure group $(N \ge 3)$ messaging protocol was that of
-Bian \textit{et.al.}\cite{ref:bian} [Group Off The Record (GOTR)]. The protocol is based on a virtual server,
-a user that sets up a secure one-on-on channel with each member of the group.
+Bian \textit{et.al.}\cite{ref:bian} [Group Off The Record (GOTR)].
+The protocol is based on a virtual server,
+a participant that sets up a secure one-on-on channel with each member of the group.
 When members of the group who are not the virtual server wish to communicate
 with each other, they relay their messages through the virtual server. The
 problem with this approach is that there is no way for users to verify that they
@@ -162,15 +161,15 @@ A second proposal for a secure group messaging protocol was made by Goldberg
 \textit{et.al.}\cite{ref:goldberg} [multi-party Off The Record (mpOTR)].
 While this protocol solved some of the
 problems associate with the Bian messaging scheme, it did not give a complete
-key-agreement algorithm. Thus far, to our knowledge, the key-agreement problem
-has not been solved. As a result, this protocol has never been successfully
+key-agreement algorithm. As a result, this protocol has never been successfully
 implemented.
 
-An improvement of the security of the GOTR/mpOTR protocol was made by Liu
-\textit{et.al}\cite{ref:liu} using a Burmester-Desmedt\cite{ref:burmester}
-group key agreement
-protocol. The Liu group demonstrated their protocol with a
-Pidgin\cite{ref:pidgin} plugin.
+An improvement of the security of the mpOTR/GOTR protocol was made by Liu
+\textit{et.al}\cite{ref:liu} using Burmester-Desmedt\cite{ref:burmester}
+for group key agreement. The improved mpOTR/GOTR is imposed on an
+underlying network of secure, binary communication channels that exist between
+participants.
+The Liu group demonstrated their protocol with a Pidgin\cite{ref:pidgin} plugin.
 
 In this paper, we present a secure, peer-to-peer multi-party messaging protocol
 (SMMP) that provides PFS, PFuS, and PD, and has a simple key agreement
@@ -191,6 +190,8 @@ Organizer)
 \item $\mathcal{\hat{A}}_i$ is the ratchet state for
 participant $P_i$.
 \item $||$ is the concatenation operator
+\item $||_i \, x_i$ means concatenation of all $x_i$ running from the smallest
+index $i$ to the largest
 \item Lower case keys are private ECDH keys.
 \item Upper case keys are public ECDH keys.
 \item hash() is a secure, one-way cryptographic hash function.
@@ -203,8 +204,8 @@ $m$ into ciphertext $c$ and \textit{vice versa}.
 \item MK is a master key from which the initial ratchet state
 $\mathcal{\hat{A}}_i$ is computed by each participant $P_i$. This parameter is
 securely erased upon computing the initial ratchet state.
-\item $X$ is the generator for curve25519 and ECDH() is the Diffie-Hellman
-operator on curve25519, \textit{i.e.} for private key $u$, the
+\item $X$ is the generator for the elliptic curve and ECDH() is the Diffie-Hellman
+operator on the elliptic curve, \textit{i.e.} for private key $u$, the
 corresponding public key is $U = \mathrm{ECDH}(u, X)$. The shared secret between
 $y$ and $z$ is then $ \mathrm{ECDH}(y,Z) = \mathrm{ECDH}(z,Y) =
 \mathrm{ECDH}(y,\mathrm{ECDH}(z, X))$.
@@ -222,63 +223,69 @@ storage:
 \item $\mathrm{conv\_digest}$ - the digest of all conversation messages so far
 \item $r_j$ - the participant private ratchet key (for participant $P_j$,
 $\mathrm{ECDH}(r_j, X) = R_j$)
+\item $r_j^{init}$ - the initial value of participant $P_j$'s private ratchet
+key
 \item $\{R_i\}$ - the set of public ratchet keys from each participant $P_i$
-\item $i$ - Participant $P_j$'s participant index number
+\item $\{R_i^{init}\}$ - the set of initial values of the public ratchet keys from
+each participant $P_i$
+\item $j$ - Participant $P_j$'s participant index number
 \item $N$ - the group size
-\item $\mathrm{group\_name}$ - the group name (this may be different for each Participant)
+\item $\mathrm{group\_name}$ - the group name (this may be different for each participant)
 \item $\mathrm{resync\_required}$ - a flag used to determine if a resynchronization of the
 ratchet state is required
 \end{itemize}
 
 \section{\label{sec:keyagreement}Key Agreement}
-The Organizer and Participants complete the following steps:
+When a group of participants desires to establish a secure group conversation
+channel, the following preliminary steps are completed (each participant will be
+known by a long-term private identity key $b_i$ and the corresponding public identity
+key $B_i$ - proof of knowledge of the private key constitutes proof of identity):
 \begin{enumerate}
-\item Participant $P_0$ establishes himself as the group Organizer $O$ and solicits
-keys from other potential participants.
-\item Organizer $O$ determines the total number of participants $N$.
-\item Organizer $O$ assigns a participant index number $i$ to each
-participant.
-\item Organizer $O$ generates elliptic curve Diffie-Hellman (ECDH) persistent group
-identity, and ephemeral group handshake
-keys $(u, U )$ and $(w, W)$.
-\item Organizer $O$ forwards $U$, $W$, $N$, and $i$ to each participant $P_i$.
-\item Each participant $P_i$ generates ECDH
-persistent identity, ephemeral handshake and ephemeral ratchet keys $(b_i, B_i)$,
-$(k_i, K_i)$, and $(r_i, R_i)$.
-\item Each participant $P_i$ forwards $B_i$ and $K_i$ to Organizer $O$.
-\item Each participant $P_i$ forwards $R_i$ to all other participants in the
-group.
-\item Organizer $O$ authenticates the identity of each participant $P_i$ with
-identity key $B_i$.
-\item Each participant $P_i$ authenticates the group identity key $U$ with Organizer
-$O$.
-\item Organizer $O$ computes:\\
-$L_i$ = $\mathrm{hash}(\mathrm{ECDH}(u, K_i) \,
-|| \, \mathrm{ECDH}(w, B_i) \, || \, \mathrm{ECDH}(w, K_i))$,\\
-$G_i = \mathrm{ECDH} (w, R_i) \, \oplus \, \oplus_{j \ne i} \, L_j$.
-\item Organizer $O$ forwards $G_i$ to participant $P_i$ for all participants.
-\item Participant $P_i$ computes:\\
-$\mathrm{MK} = \mathrm{hash}(\mathrm{ECDH}(k_i, U) \, ||
-\, \mathrm{ECDH}(b_i, W) \, || \, \mathrm{ECDH}(k_i, W) \oplus \, G_i \, \oplus
-\, \mathrm{ECDH}(r_i, W)$
-\item Participant $P_i$ computes his/her initial ratchet state $\mathcal{\hat{A}}_i$:\\
+\item The total number of participants in the group $N$ is determined and this
+number is distributed to all participants.
+\item A unique participant index $i$ is assigned to each participant. The method of
+assigning this index is application-dependent, and may $e.g.$ be assigned based
+on the ordering of the participant public identity keys.
+\end{enumerate}
+Each each group participant $P_j$ then completes the following steps:
+\begin{enumerate}
+\item Participant $P_j$ generates an ephemeral ECDH ratchet key pair $(r_j,
+R_j)$, and an ephemeral cyclic-group DH handshake key pair $(h_j, H_j)$.
+\item Participant $P_j$ broadcasts $B_j$ and $R_j$.
+\item Participant $P_j$ computes the set of keys: \\ $k_{TDHi} =
+\mathrm{hash}(\mathrm{ECDH}(b_j, B_i) \, ||
+\, \mathrm{ECDH}(r_j, R_i) \, || \, \mathrm{ECDH}(r_j, B_i))$ \\ and hmacs: \\
+$\mathrm{mac}_i = \mathrm{hmac}(k_{TDHi}, H_j)$.
+\item Participant $P_j$ sends $H_j \, || \, \mathrm{mac}_i$ to participant $P_i$ for all
+participants.
+\item Participant $P_j$ receives $H_i \, || \, \mathrm{mac}_j$ from each
+participant $P_i$.
+\item For each participant $j \ne i$, participant $P_j$ computes the set of received keys:\\ $k_{r-TDHi} =
+\mathrm{hash}(\mathrm{ECDH}(b_j, B_i) \, ||
+\, \mathrm{ECDH}(r_j, R_i) \, || \, \mathrm{ECDH}(b_j, R_i))$ \\ and hmacs: \\
+$\mathrm{mac}_{r-i} = \mathrm{hmac}(k_{r-TDHi}, H_i)$.
+\item Participant $P_j$ tests if $\mathrm{mac}_{r-i} = \mathrm{mac}_j$. If this
+test fails, the identity of participant $P_i$ is not confirmed and $P_j$ goes no
+further.
+\item Participant $P_j$ computes: $K_j = (H_{j+1}/H_{j-1})^{h_j} \mod p$ where the
+index $j$ is taken in a cycle. $P_j$ broadcasts $K_j$ to all participants $P_i$.
+\item Participant $P_j$ receives $K_i$ from each participant $P_i$ and
+computes:\\ $\mathrm{MK} = \mathrm{hash}(H_{j-1}^{ N h_j} \cdot K_j^{N-1} \cdot
+K_{j+1}^{N-2} \cdots K_{j-2} \mod p )$
+\item Participant $P_j$ computes his/her initial ratchet state
+$\mathcal{\hat{A}}_j$:\\
 $\mathrm{RK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}00)$, \\
 $\mathrm{HK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}01)$, \\
 $\mathrm{NHK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}02)$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}03)$, \\
 $v = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}04)$, \\
 $\mathrm{conv\_digest} = 0\mathrm{x}00 * 32$, \\
-$r_i$ from step 6, \\
+$r_j$ from step 1, \\
+$r_j^{init} = r_j$, \\
 $\{R_i\}$ from participants, \\
-$N$ from Organizer $O$, \\
-$i$ from Organizer $O$, \\
+$\{R_i^{init}\} = \{R_i\}$, \\
 resync\_required = \textit{False}.
-\item The Organizer role is complete and all Organizer data
-is securely erased by participant $P_0$.
 \end{enumerate}
-Once key agreement is complete, the participants may wish to authenticate themselves to
-each other by using \textit{e.g.} a non-interactive zero-knowledge
-proof\cite{ref:blum}.
 
 \section{\label{sec:sending}Sending Messages}
 Participants wanting to send a message will proceed as follows:
@@ -301,7 +308,7 @@ He the forms $c_i^\prime = c_{hi} \, || \, c_{mi}$.
 \item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_j$ as
 follows:\\
 $(r_i, R_i) = (r_i^{new}, R_i^{new})$, \\
-$\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v, \oplus_i
+$\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v, ||_i
 \, R_i))$, \\
 $\mathrm{HK} = \mathrm{NHK}$, \\
 $\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
@@ -329,7 +336,7 @@ $\mathrm{conv\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$.
 \mathrm{hash}(\mathrm{ECDH}(r_j, R_q)) \, \oplus \, \mathrm{conv\_digest}$.
 \item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_i$ as
 follows: \\
-$\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v, \oplus_i
+$\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v, ||_i
 \, R_i))$, \\
 $\mathrm{HK} = \mathrm{NHK}$, \\
 $\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
@@ -354,8 +361,8 @@ $s_i$ and $S_j$ already exist.
 \item Participant $P_i$ forms $c^\prime = c_h \, || \, c_m$ and computes $c_{hmac} =
 \mathrm{hmac}(v, c^\prime)$.
 \item Participant $P_i$ sends $c = c^\prime \, || \, c_{hmac}$ to $P_j$.
-\item Decryption will need to be added to the housekeeping section.
 \end{enumerate}
+Decryption is a straightforward reversal of this process.
 
 \section{\label{sec:housekeeping}Protocol Housekeeping}
 Here we list several protocol housekeeping operations that may be necessary.
@@ -364,7 +371,7 @@ The list may be extended if other useful operations are identified.
 \subsection{\label{sec:receivehousekeeping}Message Received Housekeeping}
 Housekeeping messages will be routed based on a one-byte header prepended to the
 payload of the housekeeping message. The byte values and their corresponding
-housekeeping tasks are (currently there are 4): \\
+housekeeping tasks are (currently there are 2): \\
 
 \begin{centering}
 \begin{tabular}{|c|c|c|}
@@ -373,8 +380,6 @@ Byte Value & Housekeeping Task & Location \\
 \hline
 $0\mathrm{x}00$ & Resynchronizing the Ratchet State  & Section \ref{sec:receiveresync}\\
 $0\mathrm{x}01$ & Instant Messaging Within SMMP & Section \ref{sec:imdecrypt}\\
-$0\mathrm{x}02$ & Adding Members To the Group & Section \ref{sec:additions}\\
-$0\mathrm{x}03$ & Removing Members From the Group & Section \ref{sec:removal}\\
 \hline
 \end{tabular} \\
 \end{centering}
@@ -395,12 +400,13 @@ this is the case, a Message\_Undecryptable exception will be raised
 and control of the decryption will be passed here. The receiving participant
 will then proceed as follows:
 \begin{enumerate}
-\item Participant $P_j$ computes $\{r_i\} = \{\mathrm{hash}(i \, \oplus \, v)\}$.
-\item Participant $P_j$ sets $v = \mathrm{hash}(v \, || \, m)$.
+\item Participant $P_j$ decomposes $m = q \, || \, v^{new} \, || \, R_q^{new}$.
+\item Participant $P_j$ sets $R_q^{init} = R_q^{new}$ and $\{R_i\} =
+\{R_i^{init}\}$.
+\item Participant $P_j$ sets $v = \mathrm{hash}(v \, || \, v^{new})$.
 \item Participant $P_j$ updates his/her ratchet state
 $\mathcal{\hat{A}}_j$ as follows:\\
-$\{R_i\} = \{\mathrm{ECDH}(r_i, X)\}$, \\
-$\mathrm{RK} = \mathrm{hash}(v \, || \, \mathrm{ECDH}(v, \oplus_i
+$\mathrm{RK} = \mathrm{hash}(v \, || \, \mathrm{ECDH}(v, ||_i
 \, R_i))$, \\
 $\mathrm{HK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
 $\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
@@ -409,19 +415,16 @@ $\mathrm{conv\_digest} = 0\mathrm{x}00 * 32$, \\
 $\mathrm{resync\_required} = False$.
 \end{enumerate}
 
-\subsubsection{\label{sec:imdecrypt}Decrypting Private Messages Within SMMP: $b =
-0\mathrm{x}01$}
+\subsubsection{\label{sec:additions}Adding Members To the Group}
 
-tbd...
+Members may be added to the group by running the key agreement part of the
+protocol again, and including the new participant.
 
-\subsubsection{\label{sec:additions}Adding Members To the Group: $b =
-0\mathrm{x}02$}
+\subsubsection{\label{sec:removal}Removing Members From the Group}
 
-tbd...
-\subsubsection{\label{sec:removal}Removing Members From the Group: $b =
-0\mathrm{x}03$}
-
-tbd...
+Members may drop from the group simply by not updating their ratchet state.
+Further, the group may remove a participant by running the key agreement part of the
+protocol again without the dropped participant.
 
 \subsection{\label{sec:sendhousekeeping}Message Send Housekeeping}
 It may be necessary at some point to send housekeeping messages. This section
@@ -435,8 +438,9 @@ A participant wishing to correct this situation should follow the following
 procedures (this may be automated):
 \begin{enumerate}
 \item Participant $P_j$ generates a new group private key $v^{new}$.
+\item Participant $P_j$ generates a new ratchet key  pair $(r^{new}, R^{new})$.
 \item participant $P_j$ computes preliminary ciphertext $c^\prime = e(v, 0\mathrm{x}00
-\, || \, v^{new})$.
+\, || \, j \, || \, v^{new} \, || \, R^{new})$.
 \item Participant $P_j$ computes hmac $c_{hmac} = \mathrm{hmac}(v, c^\prime)$.
 \item Participant $P_j$ forms $c = c^\prime \, || \, c_{hmac}$.
 \item Participant $P_j$ delays according to a backoff algorithm
@@ -446,11 +450,13 @@ that should be transport-specific and is unspecified here.
 action is necessary. If \textit{True}, participant $P_j$ continues with the next
 step.
 \item Participant $P_j$ broadcasts $c$ to all participants $P_i$.
-\item Participant $P_j$ computes $\{r_i\} = \{\mathrm{hash}(i \, \oplus \, v)\}$.
 \item Participant $P_j$ updates his/her ratchet state
 $\mathcal{\hat{A}}_j$ as follows:\\
 $v = \mathrm{hash}(v \, || \, v^{new})$, \\
-$\{R_i\} = \{\mathrm{ECDH}(r_i, X)\}$, \\
+$r_j = r^{new}$, \\
+$r_j^{init} = r^{new}$, \\
+$R_j^{init} = R^{new}$, \\
+$\{R_i\} = \{R_i^{init}\}$, \\
 $\mathrm{RK} = \mathrm{hash}(v \, || \, \mathrm{ECDH}(v, \oplus_i
 \, R_i))$, \\
 $\mathrm{HK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
@@ -487,11 +493,8 @@ the group of any participant after the conversation has completed.
 Further, we adopt the same threat model as did Goldberg
 \textit{et.al}\cite{ref:goldberg}. In particular, we analyze the robustness of
 the protocol to three types of adversaries, a security adversary, a consensus
-adversary, and a privacy adversary. We further assume that all group
-participants will follow the protocol faithfully. This assumption is valid for
-both honest participants (they have an interest in a secure group conversation),
-as well as dishonest participants (they have an interest in not revealing their
-dishonesty during the conversation).  Online judges (members of the group) can
+adversary, and a privacy adversary. We further assume that at least two group
+participants are honest. Online judges (members of the group) can
 be considered a subset of the dishonest participants. Both online and offline
 judges will be used to determine if the goals of the protocol have been met.
 
