@@ -114,14 +114,18 @@ p5 = Participant('my cool group name', 8, 5)
 p6 = Participant('my cool group name', 8, 6)
 p7 = Participant('my cool group name', 8, 7)
 
-loadState(p0, 0)
-loadState(p1, 1)
-loadState(p2, 2)
-loadState(p3, 3)
-loadState(p4, 4)
-loadState(p5, 5)
-loadState(p6, 6)
-loadState(p7, 7)
+try:
+    loadState(p0, 0)
+    loadState(p1, 1)
+    loadState(p2, 2)
+    loadState(p3, 3)
+    loadState(p4, 4)
+    loadState(p5, 5)
+    loadState(p6, 6)
+    loadState(p7, 7)
+except IOError:
+    print 'No state files available - generate them with gendata.py'
+    exit()
 
 participants = ('p0', 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7')
 data_old = deepcopy(p0.state)
@@ -208,7 +212,10 @@ while True:
             try_twice = randint(0,9)
             second_decryption = False
             try:
-                print 'P'+str(i)+': '+eval(participants[i]+'.decrypt(ciphertexts[i][3:])') + ' and decrypted by P' + str(i)
+                try:
+                    print 'P'+str(i)+': '+eval(participants[i]+'.decrypt(ciphertexts[i][3:])') + ' and decrypted by P' + str(i)
+                except KeyError:
+                    raise BummerUndecryptable
                 if try_twice == 0:
                     second_decryption = True
                     print ' ' + eval(participants[i]+'.decrypt(ciphertexts[i][3:])')
