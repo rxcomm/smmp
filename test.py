@@ -30,6 +30,23 @@ def decFile(file_name, passphrase):
     yield a
     a.close()
 
+@contextmanager
+def encFile(file_name, passphrase):
+    a = StringIO()
+    yield a
+    KEYRING = './keyring.gpg'
+    SECRET_KEYRING = './secring.gpg'
+    GPGBINARY = 'gpg'
+    gpg = gnupg.GPG(gnupghome='.', gpgbinary=GPGBINARY, keyring=KEYRING,
+                    secret_keyring=SECRET_KEYRING, options=['--throw-keyids',
+                    '--personal-digest-preferences=sha256','--s2k-digest-algo=sha256'])
+    gpg.encoding = 'utf-8'
+    ciphertext = gpg.encrypt(a.getvalue(), recipients=None, symmetric='AES256',
+                             armor=False, always_trust=True, passphrase=passphrase)
+    a.close()
+    with open(file_name, 'wb') as f:
+        f.write(ciphertext.data)
+
 def strxor(s0, s1):
     l = [chr(ord(a)^ord(b)) for a,b in zip(s0, s1)]
     return ''.join (l)
@@ -65,6 +82,28 @@ def loadState(mypart, num):
             mypart.state['initpubR'][i] = binascii.a2b_base64(data_list[12+i])
         for i in range(mypart.group_size):
             mypart.state['R'][i] = binascii.a2b_base64(data_list[12+mypart.group_size+i])
+
+def saveState(mypart, num):
+    file_name = 'ex_data/example'+str(num)+'.dat'
+    passphrase = '1'
+    with encFile(file_name, passphrase) as f:
+        f.write(binascii.b2a_base64(mypart.state['HK']))
+        f.write(binascii.b2a_base64(mypart.state['MK']))
+        f.write(binascii.b2a_base64(mypart.state['NHK']))
+        f.write(binascii.b2a_base64(mypart.state['RK']))
+        f.write(binascii.b2a_base64(mypart.state['v']))
+        f.write(mypart.state['group_name']+'\n')
+        f.write(str(mypart.state['my_index'])+'\n')
+        f.write(str(mypart.group_size)+'\n')
+        resync_required = '1' if mypart.resync_required else '0'
+        f.write(resync_required+'\n')
+        f.write(binascii.b2a_base64(mypart.ratchetKey))
+        f.write(binascii.b2a_base64(mypart.state['initr']))
+        f.write(binascii.b2a_base64(mypart.state['digest']))
+        for key, item in mypart.state['initpubR'].iteritems():
+            f.write(binascii.b2a_base64(item))
+        for key, item in mypart.state['R'].iteritems():
+            f.write(binascii.b2a_base64(item))
 
 p0 = Participant('my cool group name', 8, 0)
 p1 = Participant('my cool group name', 8, 1)
@@ -196,6 +235,14 @@ while True:
         print '   No participant secret keys are ever shared in this implementation.'
         sleep(5)
     except KeyboardInterrupt:
+        saveState(p0, 0)
+        saveState(p1, 1)
+        saveState(p2, 2)
+        saveState(p3, 3)
+        saveState(p4, 4)
+        saveState(p5, 5)
+        saveState(p6, 6)
+        saveState(p7, 7)
         print 'Whew! I\'m done...'
         exit()
 
