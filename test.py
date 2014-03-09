@@ -218,7 +218,10 @@ while True:
                     raise BummerUndecryptable
                 if try_twice == 0:
                     second_decryption = True
-                    print ' ' + eval(participants[i]+'.decrypt(ciphertexts[i][3:])')
+                    try:
+                        print ' ' + eval(participants[i]+'.decrypt(ciphertexts[i][3:])')
+                    except KeyError:
+                        raise BummerUndecryptable
             except (BummerUndecryptable, BadHMAC):
                 if not second_decryption:
                     print '* P'+str(i)+': Decryption Error!'
