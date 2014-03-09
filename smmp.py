@@ -131,8 +131,6 @@ class Participant:
                 mac = hmac.new(self.state['v'], msg, hashlib.sha256).digest()
                 # not part of protocol
                 messages[i] = str(i).zfill(3) + msg + mac
-            else:
-                messages[i] = '998'
         self.ratchetKey = rnew
         self.state['R'][self.state['my_index']] = Rnew
         DHR = ''
