@@ -54,8 +54,8 @@ class Participant:
         return binascii.unhexlify(num)
 
 
-    def tripleDH(self, k, b, U, W):
-        return hashlib.sha256(self.genDH(k, U) + self.genDH(b, W) + self.genDH(k, W)).digest()
+    def tripleDH(self, b, r, B, R):
+        return hashlib.sha256(self.genDH(r, B) + self.genDH(b, R) + self.genDH(r, R)).digest()
 
     def genDH(self, a, B):
         key = keys.Private(secret=a)

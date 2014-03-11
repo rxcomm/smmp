@@ -49,15 +49,19 @@ floatfix,
 We describe a new secure, multi-party, synchronous communication protocol.
 The protocol follows a peer-to-peer model and provides perfect forward
 secrecy, perfect future secrecy, and plausible deniability for participants in
-the conversation, as long as at least two participants are honest.
+a multi-party conversation, as long as at least two participants are honest.
 The protocol uses the Burmester-Desmedt group key agreement
-protocol to generate a shared secret between a group of participants.
-Each conversation participant is authenticated via a triple Diffie-Hellman
-signing mechanism that occurs during group key agreement.
+protocol to generate a shared secret between a group $N$ of participants.
+Conversation participants authenticate to each other
+during key agreement via a triple Diffie-Hellman exchange.
 Individual header and message keys are updated after receipt of each message by incorporating
-additional random key material distributed by the sending participant.
-No security requirements are imposed on the underlying transport layer.
-All setup operations prior to group key agreement can take place over an insecure
+new key material distributed by the sending participant.
+No security requirements are imposed on the underlying transport layer, and
+our protocol leaks no metadata.
+Conversation transcript universality is assured by a conversation digest that is updated
+upon receipt of each message, and all conversation messages are signed to
+verify proof of origin.
+All setup operations prior to group key agreement take place over an insecure
 channel.
 \end{abstract}
 
@@ -253,16 +257,16 @@ Each each group participant $P_j$ then completes the following steps:
 R_j)$, and an ephemeral cyclic-group DH handshake key pair $(h_j, H_j)$.
 \item Participant $P_j$ broadcasts $B_j$ and $R_j$.
 \item Participant $P_j$ computes the set of keys: \\ $k_{TDHi} =
-\mathrm{hash}(\mathrm{ECDH}(b_j, B_i) \, ||
-\, \mathrm{ECDH}(r_j, R_i) \, || \, \mathrm{ECDH}(r_j, B_i))$ \\ and hmacs: \\
+\mathrm{hash}(\mathrm{ECDH}(b_j, R_i) \, ||
+\, \mathrm{ECDH}(r_j, B_i) \, || \, \mathrm{ECDH}(r_j, R_i))$ \\ and hmacs: \\
 $\mathrm{mac}_i = \mathrm{hmac}(k_{TDHi}, H_j)$.
 \item Participant $P_j$ sends $H_j \, || \, \mathrm{mac}_i$ to participant $P_i$ for all
 participants.
 \item Participant $P_j$ receives $H_i \, || \, \mathrm{mac}_j$ from each
 participant $P_i$.
 \item For each participant $j \ne i$, participant $P_j$ computes the set of received keys:\\ $k_{r-TDHi} =
-\mathrm{hash}(\mathrm{ECDH}(b_j, B_i) \, ||
-\, \mathrm{ECDH}(r_j, R_i) \, || \, \mathrm{ECDH}(b_j, R_i))$ \\ and hmacs: \\
+\mathrm{hash}(\mathrm{ECDH}(r_j, B_i) \, ||
+\, \mathrm{ECDH}(b_j, R_i) \, || \, \mathrm{ECDH}(r_j, R_i))$ \\ and hmacs: \\
 $\mathrm{mac}_{r-i} = \mathrm{hmac}(k_{r-TDHi}, H_i)$.
 \item Participant $P_j$ tests if $\mathrm{mac}_{r-i} = \mathrm{mac}_j$. If this
 test fails, the identity of participant $P_i$ is not confirmed and $P_j$ goes no

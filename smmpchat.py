@@ -421,9 +421,9 @@ if __name__ == '__main__':
                 R[i] = binascii.a2b_base64(raw_input('Input user '+str(i)+'\'s public ratchet key: '))
         for i in range(num_users):
             if i != my_index:
-                mackey = mypart.genDH(mypart.identityKey, identityKeys[i]) + \
-                         mypart.genDH(mypart.ratchetKey, R[i]) + \
-                         mypart.genDH(mypart.ratchetKey, identityKeys[i])
+                mackey = mypart.genDH(mypart.identityKey, R[i]) + \
+                         mypart.genDH(mypart.ratchetKey, identityKeys[i]) + \
+                         mypart.genDH(mypart.ratchetKey, R[i])
                 mackey = hashlib.sha256(mackey).digest()
                 mac = hmac.new(mackey, str(k[my_index]), hashlib.sha256).digest()
                 print 'Send this signed public handshake key to user '+str(i)+': '+binascii.b2a_base64(l2s(k[my_index])+mac)
