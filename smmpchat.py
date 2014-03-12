@@ -323,7 +323,6 @@ def saveState(mypart):
     with encFile(file_name, passphrase) as f:
         f.write(binascii.b2a_base64(mypart.state['HK']))
         f.write(binascii.b2a_base64(mypart.state['MK']))
-        f.write(binascii.b2a_base64(mypart.state['NHK']))
         f.write(binascii.b2a_base64(mypart.state['RK']))
         f.write(binascii.b2a_base64(mypart.state['v']))
         f.write(mypart.state['group_name']+'\n')
@@ -347,23 +346,22 @@ def loadState(mypart):
         data_list = data.split()
         mypart.state['HK'] = binascii.a2b_base64(data_list[0])
         mypart.state['MK'] = binascii.a2b_base64(data_list[1])
-        mypart.state['NHK'] = binascii.a2b_base64(data_list[2])
-        mypart.state['RK'] = binascii.a2b_base64(data_list[3])
-        mypart.state['v'] = binascii.a2b_base64(data_list[4])
-        mypart.state['group_name'] = data_list[5]
-        mypart.state['my_index'] = int(data_list[6])
-        mypart.group_size = int(data_list[7])
-        resync_required = data_list[8]
+        mypart.state['RK'] = binascii.a2b_base64(data_list[2])
+        mypart.state['v'] = binascii.a2b_base64(data_list[3])
+        mypart.state['group_name'] = data_list[4]
+        mypart.state['my_index'] = int(data_list[5])
+        mypart.group_size = int(data_list[6])
+        resync_required = data_list[7]
         mypart.resync_required = True if resync_required == '1' else False
-        mypart.ratchetKey = binascii.a2b_base64(data_list[9])
-        mypart.state['initr'] = binascii.a2b_base64(data_list[10])
-        mypart.state['digest'] = binascii.a2b_base64(data_list[11])
+        mypart.ratchetKey = binascii.a2b_base64(data_list[8])
+        mypart.state['initr'] = binascii.a2b_base64(data_list[9])
+        mypart.state['digest'] = binascii.a2b_base64(data_list[10])
         mypart.state['R'] = {}
         mypart.state['initpubR'] = {}
         for i in range(mypart.group_size):
-            mypart.state['initpubR'][i] = binascii.a2b_base64(data_list[12+i])
+            mypart.state['initpubR'][i] = binascii.a2b_base64(data_list[11+i])
         for i in range(mypart.group_size):
-            mypart.state['R'][i] = binascii.a2b_base64(data_list[12+mypart.group_size+i])
+            mypart.state['R'][i] = binascii.a2b_base64(data_list[11+mypart.group_size+i])
 
 if __name__ == '__main__':
 
