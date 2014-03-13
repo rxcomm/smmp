@@ -203,7 +203,9 @@ def sendThread(sock, mypart):
     while int(time()) % grp != my:
         sleep(0.01 * SLOTTIME)
     try:
-        ciphertexts = mypart.encrypt(msg_data)
+        data = msg_data
+        msg_data = ''
+        ciphertexts = mypart.encrypt(data)
         if type(ciphertexts) is dict:
             for i, message in ciphertexts.iteritems():
                 sock.send(message + 'EOP')
@@ -315,10 +317,12 @@ def chatThread(sock, mypart, myname):
                 data = data.replace('\n', '') + '\n'
                 lock.release()
                 try:
-                    if st.isAlive():
+                    if st.isAlive() and msg_data != '':
                         msg_data += data
                     else:
                         msg_data = data
+                        while st.isAlive():
+                            pass
                         st = threading.Thread(target=sendThread,args=(sock, mypart))
                         st.daemon = True
                         st.start()
