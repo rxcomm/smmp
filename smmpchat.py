@@ -195,9 +195,8 @@ def l2s(n):
         num = '0' + num
     return binascii.unhexlify(num)
 
-def sendThread(sock, mypart):
+def sendThread(sock, mypart, SLOTTIME):
     global msg_data
-    SLOTTIME = 1 # TDMA timeslot width for packets (integer seconds)
     stime = float(SLOTTIME)/4.0
     grp = SLOTTIME * mypart.group_size
     my = float(SLOTTIME * mypart.state['my_index'])
@@ -271,6 +270,7 @@ def receiveThread(sock, mypart, stdscr, input_win, output_win, title_win):
 def chatThread(sock, mypart, myname):
     global screen_needs_update
     global msg_data
+    SLOTTIME = 1.0 # TDMA slot time (seconds)
     stdscr, input_win, output_win, title_win = windows()
     title_win.addstr('Group: ', curses.color_pair(3))
     title_win.addstr(mypart.state['group_name'])
@@ -279,9 +279,9 @@ def chatThread(sock, mypart, myname):
     textpad = _Textbox(input_win, insert_mode=True)
     textpad.stripspaces = True
     delay = randint(1, mypart.group_size + 10)
-    t = threading.Thread(target=receiveThread, args=(sock,mypart,stdscr,input_win,output_win,title_win))
-    t.daemon = True
-    t.start()
+    rt = threading.Thread(target=receiveThread, args=(sock,mypart,stdscr,input_win,output_win,title_win))
+    rt.daemon = True
+    rt.start()
     try:
         while True:
             lock.acquire()
@@ -306,6 +306,21 @@ def chatThread(sock, mypart, myname):
                 if ans != 'n' and ans != 'N':
                     saveState(mypart)
                 sys.exit()
+            elif myname+':> .slottime' in data:
+                input_win.clear()
+                input_win.addstr(myname+':> ')
+                try:
+                    SLOTTIME = float(data[len(myname+':> .slottime '):])
+                    output_win.addstr('SLOTTIME set to '+str(SLOTTIME)+' seconds\n', curses.color_pair(1))
+                    output_win.noutrefresh()
+                except ValueError:
+                    output_win.addstr('SLOTTIME not reset\n', curses.color_pair(1))
+                    output_win.noutrefresh()
+                input_win.move(0, len(myname) +3)
+                input_win.cursyncup()
+                input_win.noutrefresh()
+                screen_needs_update = True
+                lock.release()
             else:
                 input_win.clear()
                 input_win.addstr(myname+':> ')
@@ -324,12 +339,12 @@ def chatThread(sock, mypart, myname):
                         msg_data = data
                         while st.isAlive():
                             pass
-                        st = threading.Thread(target=sendThread,args=(sock, mypart))
+                        st = threading.Thread(target=sendThread,args=(sock, mypart, SLOTTIME))
                         st.daemon = True
                         st.start()
                 except UnboundLocalError:
                     msg_data = data
-                    st = threading.Thread(target=sendThread,args=(sock, mypart))
+                    st = threading.Thread(target=sendThread,args=(sock, mypart, SLOTTIME))
                     st.daemon = True
                     st.start()
 
