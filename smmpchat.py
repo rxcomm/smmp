@@ -198,9 +198,10 @@ def l2s(n):
 def sendThread(sock, mypart):
     global msg_data
     SLOTTIME = 1 # TDMA timeslot width for packets (integer seconds)
+    stime = float(SLOTTIME)/4.0
     grp = SLOTTIME * mypart.group_size
-    my = SLOTTIME * mypart.state['my_index']
-    while int(time()) % grp != my:
+    my = float(SLOTTIME * mypart.state['my_index'])
+    while abs((time() % grp) - my) >= stime:
         sleep(0.01 * SLOTTIME)
     try:
         data = msg_data
