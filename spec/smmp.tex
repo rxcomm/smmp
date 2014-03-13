@@ -29,7 +29,7 @@ floatfix,
 
 \begin{document}
 
-\preprint{Version 0.3.5}
+\preprint{Version 0.5.0}
 
 \title{SMMP: A Secure Multi-Party Messaging Protocol}% Force line breaks with \\
 
@@ -54,10 +54,10 @@ The protocol uses the Burmester-Desmedt group key agreement
 protocol to generate a shared secret between a group $N$ of participants.
 Conversation participants authenticate to each other
 during key agreement via a triple Diffie-Hellman exchange.
-Individual header and message keys are updated after receipt of each message by incorporating
+Individual message keys are updated after receipt of each message by incorporating
 new key material distributed by the sending participant.
 No security requirements are imposed on the underlying transport layer, and
-our protocol leaks no metadata.
+our protocol leaks no metadata beyond that exposed by the transport layer.
 Conversation transcript universality is assured by a conversation digest that is updated
 upon receipt of each message, and all conversation messages are signed to
 verify proof of origin.
@@ -173,11 +173,17 @@ An improvement of the security of the mpOTR/GOTR protocol was made by Liu
 for group key agreement. The improved mpOTR/GOTR is imposed on an
 underlying network of secure, binary communication channels that exist between
 participants.
+The improved mpOTR/GOTR protocol requires an underlying network of binary
+encrypted channels between adjacent users in the network,
+six exchanges to complete group key agreement,
+and does not provide either PFS or PFuS.
 The Liu group demonstrated their protocol with a Pidgin\cite{ref:pidgin} plugin.
 
 In this paper, we present a secure, peer-to-peer multi-party messaging protocol
 (SMMP) that provides PFS, PFuS, and PD, and has a simple key agreement
-algorithm. The protocol allows all group members to confirm that they are
+algorithm requiring three exchanges to complete key agreement (including
+authentication between all peers).
+The protocol allows all group members to confirm that they are
 receiving a complete transcript of the group conversation, and provides a
 robust mechanism for resynchronization of the ratchet state if messages are lost
 because of failure of the underlying transport mechanism.
@@ -221,7 +227,6 @@ storage:
 \begin{itemize}
 \item RK - the root key
 \item HK - the header key
-\item NHK - the next header key
 \item mk - the message key
 \item $v$ - the group private ratchet key
 \item $\mathrm{conv\_digest}$ - the digest of all conversation messages so far
@@ -279,9 +284,7 @@ K_{j+1}^{N-2} \cdots K_{j-2} \mod p )$
 \item Participant $P_j$ computes his/her initial ratchet state
 $\mathcal{\hat{A}}_j$:\\
 $\mathrm{RK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}00)$, \\
-$\mathrm{HK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}01)$, \\
-$\mathrm{NHK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}02)$, \\
-$\mathrm{mk} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}03)$, \\
+$\mathrm{mk} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}01)$, \\
 $v = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}04)$, \\
 $\mathrm{conv\_digest} = 0\mathrm{x}00 * 32$, \\
 $r_j$ from step 1, \\
@@ -301,22 +304,17 @@ $(r_j^{new},R_j^{new})$.
 \item Participant $P_j$ computes a new conversation digest
 $ \mathrm{conv\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$.
 \item For all $i \ne j$, participant $P_j$ computes the set of $N-1$ preliminary
-ciphertexts $c_{hi} = e(\mathrm{HK}, j
-\, || \, R_j^{new} \, \oplus \, \mathrm{hash}(\mathrm{ECDH}(r_j, R_i) \, \oplus
-\, \mathrm{conv\_digest})$ and the
-set of $N-1$ preliminary ciphertexts
-$c_{mi} = e(\mathrm{mk}, m)$.
-He the forms $c_i^\prime = c_{hi} \, || \, c_{mi}$.
-\item Participant $P_j$ computes the set of $N-1$ hmacs $c_{hmaci} = \mathrm{hmac}(v, c_i^\prime)$.
+ciphertexts $c_{i}^\prime = e(\mathrm{mk}, j
+\, || \, R_j^{new} \, \oplus \, \mathrm{hash}(\mathrm{ECDH}(r_j, R_i)) \, \oplus
+\, \mathrm{conv\_digest} \, || \, m)$.
+\item Participant $P_j$ computes the set of $N-1$ hmacs $c_{hmaci} = \mathrm{hmac}(v, c_i)$.
 \item Participant $P_j$ forms the set of $N-1$ ciphertexts $c_i = c_i^\prime \, || \, c_{hmaci}$.
 \item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_j$ as
 follows:\\
 $(r_i, R_i) = (r_i^{new}, R_i^{new})$, \\
 $\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v, ||_i
 \, R_i))$, \\
-$\mathrm{HK} = \mathrm{NHK}$, \\
-$\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
-$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
+$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$.
 \item Participant $P_j$ sends $c_i $ to participant $P_i$ for all participants.
 \end{enumerate}
 
@@ -325,12 +323,11 @@ Participants receiving a message will proceed as follows:
 \begin{enumerate}
 \item Upon receipt of a ciphertext $c$, participants $P_j$ separates $c$ into
 $c^\prime$ and $c_{hmac}$ parts.
-\item Participant $P_j$ tests if $\mathrm{hash}(v, c^\prime) = c_{hmac}$. If
+\item Participant $P_j$ tests if $\mathrm{hmac}(v, c^\prime) = c_{hmac}$. If
 they do not match, he/she raises a Bad\_HMAC exception and goes no further.
-\item Participant $P_j$ splits $c^\prime$ into header $c_h$ and message $c_m$ components
-and obtains $q \, || \, R =
-d(\mathrm{HK}, c_h)$ and $m = d(\mathrm{mk},
-c_m)$. If either of these operations fail, he/she raises a Message\_Undecryptable
+\item Participant $P_j$ obtains $q \, || \, R \, || \, m =
+d(\mathrm{mk}, c^\prime)$.
+If this operations fails, he/she raises a Message\_Undecryptable
 exception, sets the resync\_required flag \textit{True},
 and passes $c^\prime$ and control to the message-received housekeeping routine described in
 Section \ref{sec:receivehousekeeping}.
@@ -342,9 +339,7 @@ $\mathrm{conv\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$.
 follows: \\
 $\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v, ||_i
 \, R_i))$, \\
-$\mathrm{HK} = \mathrm{NHK}$, \\
-$\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
-$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$.
+$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$.
 
 \end{enumerate}
 
@@ -412,9 +407,7 @@ will then proceed as follows:
 $\mathcal{\hat{A}}_j$ as follows:\\
 $\mathrm{RK} = \mathrm{hash}(v \, || \, \mathrm{ECDH}(v, ||_i
 \, R_i))$, \\
-$\mathrm{HK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
-$\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
-$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$, \\
+$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
 $\mathrm{conv\_digest} = 0\mathrm{x}00 * 32$, \\
 $\mathrm{resync\_required} = False$.
 \end{enumerate}
@@ -463,9 +456,7 @@ $R_j^{init} = R^{new}$, \\
 $\{R_i\} = \{R_i^{init}\}$, \\
 $\mathrm{RK} = \mathrm{hash}(v \, || \, \mathrm{ECDH}(v, \oplus_i
 \, R_i))$, \\
-$\mathrm{HK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
-$\mathrm{NHK} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}02)$, \\
-$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}03)$, \\
+$\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
 $\mathrm{conv\_digest} = 0\mathrm{x}00 * 32$, \\
 $\mathrm{resync\_required} = False$.
 \end{enumerate}
@@ -491,7 +482,7 @@ part of the group communication.
 to be sent as part of the group communication.
 \item Plausible Deniability - The protocol should provide PD such that a
 transcript of the group conversation cannot be used to prove the membership in
-the group of any participant after the conversation has completed.
+the group of any participant during the conversation or after the conversation has completed.
 \end{itemize}
 
 Further, we adopt the same threat model as did Goldberg
