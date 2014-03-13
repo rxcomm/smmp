@@ -34,15 +34,26 @@ Usage:
 
 3. .quit at the chat prompt will quit (don't forget the "dot")
 
-4. If you lose synchronization with a user (Undecryptable message error),
-   hit <RETURN> and the system should re-sync you. You can also resync
-   by typing .resync at the chat prompt.
+4. To avoid collisions between messages, smmpchat uses a simple TDMA
+   algorithm. The TDMA slot time (window for sending messages from
+   a participant) may be adjusted with the .slottime command. For example:
 
-5. If you receive a Bad HMAC error, either 1) you are badly out of sync
+        .slottime 2.5
+
+   will set the slot time to 2.5 seconds. All group participants should
+   set the same slot time.
+
+5. If you lose synchronization with a user (Undecryptable message error),
+   hit <RETURN> and the system should re-sync you. You can also resync
+   by typing .resync at the chat prompt. Collisions can be minimized by
+   judicious selection of the slot time. It should be greater than the
+   round-trip time required for messages.
+
+6. If you receive a Bad HMAC error, either 1) you are badly out of sync
    and will need to perform a new key-agreement step, or 2) Somebody
    else is spamming your port with garbage packets. Neither is good.
 
-6. If you have the means to distribute keys securely to all users, you can
+7. If you have the means to distribute keys securely to all users, you can
    use the gendata.py utility to generate a keyset and skip the formal
    key agreement process.
 
