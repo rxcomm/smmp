@@ -12,7 +12,7 @@ import hashlib
 from curses.textpad import Textbox
 from random import randint
 from contextlib import contextmanager
-from time import sleep
+from time import sleep, time
 from smmp import Participant, BummerUndecryptable, BadHMAC, BadDIGEST
 from StringIO import StringIO
 from getpass import getpass
@@ -195,6 +195,26 @@ def l2s(n):
         num = '0' + num
     return binascii.unhexlify(num)
 
+def sendThread(sock, mypart):
+    global msg_data
+    SLOTTIME = 1 # TDMA timeslot width for packets (integer seconds)
+    grp = SLOTTIME * mypart.group_size
+    my = SLOTTIME * mypart.state['my_index']
+    while int(time()) % grp != my:
+        sleep(0.01 * SLOTTIME)
+    try:
+        ciphertexts = mypart.encrypt(msg_data)
+        if type(ciphertexts) is dict:
+            for i, message in ciphertexts.iteritems():
+                sock.send(message + 'EOP')
+        else:
+            sock.send(ciphertexts + 'EOP')
+    except socket.error:
+        input_win.addstr('Disconnected')
+        input_win.refresh()
+        closeWindows(stdscr)
+        sys.exit()
+
 def receiveThread(sock, mypart, stdscr, input_win, output_win, title_win):
     global screen_needs_update
     while True:
@@ -247,6 +267,7 @@ def receiveThread(sock, mypart, stdscr, input_win, output_win, title_win):
 
 def chatThread(sock, mypart, myname):
     global screen_needs_update
+    global msg_data
     stdscr, input_win, output_win, title_win = windows()
     title_win.addstr('Group: ', curses.color_pair(3))
     title_win.addstr(mypart.state['group_name'])
@@ -292,19 +313,21 @@ def chatThread(sock, mypart, myname):
                 input_win.noutrefresh()
                 screen_needs_update = True
                 data = data.replace('\n', '') + '\n'
-                try:
-                    ciphertexts = mypart.encrypt(data)
-                    if type(ciphertexts) is dict:
-                        for i, message in ciphertexts.iteritems():
-                            sock.send(message + 'EOP')
-                    else:
-                        sock.send(ciphertexts + 'EOP')
-                except socket.error:
-                    input_win.addstr('Disconnected')
-                    input_win.refresh()
-                    closeWindows(stdscr)
-                    sys.exit()
                 lock.release()
+                try:
+                    if st.isAlive():
+                        msg_data += data
+                    else:
+                        msg_data = data
+                        st = threading.Thread(target=sendThread,args=(sock, mypart))
+                        st.daemon = True
+                        st.start()
+                except UnboundLocalError:
+                    msg_data = data
+                    st = threading.Thread(target=sendThread,args=(sock, mypart))
+                    st.daemon = True
+                    st.start()
+
     except KeyboardInterrupt:
         closeWindows(stdscr)
         ans = raw_input('Save the state? Y/n ')
