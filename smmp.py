@@ -96,15 +96,13 @@ class Participant:
         del self.bd
 
         RK = pbkdf2(mkey, b'\x00', 10, prf='hmac-sha256')
-        HK = pbkdf2(mkey, b'\x01', 10, prf='hmac-sha256')
-        MK = pbkdf2(mkey, b'\x02', 10, prf='hmac-sha256')
-        v = pbkdf2(mkey, b'\x03', 10, prf='hmac-sha256')
+        MK = pbkdf2(mkey, b'\x01', 10, prf='hmac-sha256')
+        v = pbkdf2(mkey, b'\x02', 10, prf='hmac-sha256')
 
         self.state = \
                { 'group_name': self.group_name,
                  'my_index': self.my_index,
                  'RK': RK,
-                 'HK': HK,
                  'MK': MK,
                  'initpubR' : deepcopy(ratchetKeys),
                  'initr' : deepcopy(self.ratchetKey),
@@ -121,11 +119,7 @@ class Participant:
             if i != self.state['my_index']:
                 otp = self.strxor(hashlib.sha256(self.genDH(self.ratchetKey, self.state['R'][i])).digest(), self.state['digest'])
                 encrypted_Rnew = self.strxor(Rnew, otp)
-                msg1 = self.enc(self.state['HK'], str(self.state['my_index']).zfill(3) + encrypted_Rnew)
-                msg2 = self.enc(self.state['MK'], plaintext)
-                pad_length = 103 - len(msg1)
-                pad = os.urandom(pad_length - 1) + chr(pad_length)
-                msg = msg1 + pad + msg2
+                msg = self.enc(self.state['MK'], str(self.state['my_index']).zfill(3) + encrypted_Rnew + plaintext)
                 mac = hmac.new(self.state['v'], msg, hashlib.sha256).digest()
                 # not part of protocol
                 messages[i] = str(i).zfill(3) + msg + mac
@@ -137,8 +131,7 @@ class Participant:
         DHR = hashlib.sha256(DHR).digest()
         self.state['RK'] = hashlib.sha256(self.state['RK'] +
                    self.genDH(self.state['v'], DHR)).digest()
-        self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
-        self.state['MK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
+        self.state['MK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
         return messages
 
     def enc(self, key, plaintext):
@@ -159,30 +152,23 @@ class Participant:
     def decrypt(self, msg):
         if hmac.new(self.state['v'], msg[:-32], hashlib.sha256).digest() != msg[-32:]:
             raise BadHMAC
-        pad = msg[102:103]
-        pad_length = ord(pad)
-        msg1 = msg[:103-pad_length]
 
-        header = self.dec(self.state['HK'], msg1)
-        if not header or header == '':
+        plaintext = self.dec(self.state['MK'], msg[:-32])
+        if not plaintext or plaintext == '':
             return self.resyncReceive(msg[:-32])
-        Pnum = int(header[:3])
+        Pnum = int(plaintext[:3])
 
-        body = self.dec(self.state['MK'], msg[103:-32])
-        if not body or body == '':
-            raise BummerUndecryptable
-        self.state['digest'] = self.strxor(hashlib.sha256(body).digest(), self.state['digest'])
+        self.state['digest'] = self.strxor(hashlib.sha256(plaintext[35:]).digest(), self.state['digest'])
         otp = self.strxor(hashlib.sha256(self.genDH(self.ratchetKey, self.state['R'][Pnum])).digest(), self.state['digest'])
-        self.state['R'][Pnum] = self.strxor(header[3:35], otp)
+        self.state['R'][Pnum] = self.strxor(plaintext[3:35], otp)
         DHR = ''
         for i in range(self.group_size):
             DHR = DHR + self.genDH(self.state['v'], self.state['R'][i])
         DHR = hashlib.sha256(DHR).digest()
         self.state['RK'] = hashlib.sha256(self.state['RK'] +
                    self.genDH(self.state['v'], DHR)).digest()
-        self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
-        self.state['MK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
-        return body
+        self.state['MK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
+        return plaintext[35:]
 
     def printState(self):
         for key in sorted(self.state):
@@ -228,15 +214,13 @@ class Participant:
             DHR = DHR + self.state['initpubR'][i]
         DHR = hashlib.sha256(DHR).digest()
         RK = hashlib.sha256(v + self.genDH(v, DHR)).digest()
-        HK = pbkdf2(RK, b'\x01', 10, prf='hmac-sha256')
-        MK = pbkdf2(RK, b'\x02', 10, prf='hmac-sha256')
+        MK = pbkdf2(RK, b'\x01', 10, prf='hmac-sha256')
         if self.resync_required:
             self.resync_required = False
             self.ratchetKey = deepcopy(self.state['initr'])
             self.state['R'] = deepcopy(self.state['initpubR'])
             self.state['v'] = v
             self.state['RK'] = RK
-            self.state['HK'] = HK
             self.state['MK'] = MK
             self.state['digest'] = '\x00' * 32
             sock.send('999' + msg1 + mac + 'EOP')
@@ -262,8 +246,7 @@ class Participant:
             DHR = hashlib.sha256(DHR).digest()
             self.state['RK'] = hashlib.sha256(self.state['v'] +
                        self.genDH(self.state['v'], DHR)).digest()
-            self.state['HK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
-            self.state['MK'] = pbkdf2(self.state['RK'], b'\x02', 10, prf='hmac-sha256')
+            self.state['MK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
             self.state['digest'] = '\x00' * 32
             return 'Ratchet resync message received - System resynced!\n'
 

@@ -47,7 +47,6 @@ if __name__ == '__main__':
     num_users = int(raw_input('Enter the number of users in the group: '))
     group_name = raw_input('Enter the group name: ')
     MK, MKP = genKey()
-    HK, HKP = genKey()
     RK, RKP = genKey()
     v, V = genKey()
     R = {}
@@ -56,7 +55,6 @@ if __name__ == '__main__':
         r[i], R[i] = genKey()
     for i in range(num_users):
         with encFile(file_name +str(i) + '.dat', passphrase) as f:
-            f.write(binascii.b2a_base64(HK))
             f.write(binascii.b2a_base64(MK))
             f.write(binascii.b2a_base64(RK))
             f.write(binascii.b2a_base64(v))

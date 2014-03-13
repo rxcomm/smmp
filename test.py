@@ -63,30 +63,28 @@ def loadState(mypart, num):
     with decFile(file_name, passphrase) as f:
         data = f.read()
         data_list = data.split()
-        mypart.state['HK'] = binascii.a2b_base64(data_list[0])
-        mypart.state['MK'] = binascii.a2b_base64(data_list[1])
-        mypart.state['RK'] = binascii.a2b_base64(data_list[2])
-        mypart.state['v'] = binascii.a2b_base64(data_list[3])
-        mypart.state['group_name'] = data_list[4]
-        mypart.state['my_index'] = int(data_list[5])
-        mypart.group_size = int(data_list[6])
-        resync_required = data_list[7]
+        mypart.state['MK'] = binascii.a2b_base64(data_list[0])
+        mypart.state['RK'] = binascii.a2b_base64(data_list[1])
+        mypart.state['v'] = binascii.a2b_base64(data_list[2])
+        mypart.state['group_name'] = data_list[3]
+        mypart.state['my_index'] = int(data_list[4])
+        mypart.group_size = int(data_list[5])
+        resync_required = data_list[6]
         mypart.resync_required = True if resync_required == '1' else False
-        mypart.ratchetKey = binascii.a2b_base64(data_list[8])
-        mypart.state['initr'] = binascii.a2b_base64(data_list[9])
-        mypart.state['digest'] = binascii.a2b_base64(data_list[10])
+        mypart.ratchetKey = binascii.a2b_base64(data_list[7])
+        mypart.state['initr'] = binascii.a2b_base64(data_list[8])
+        mypart.state['digest'] = binascii.a2b_base64(data_list[9])
         mypart.state['R'] = {}
         mypart.state['initpubR'] = {}
         for i in range(mypart.group_size):
-            mypart.state['initpubR'][i] = binascii.a2b_base64(data_list[11+i])
+            mypart.state['initpubR'][i] = binascii.a2b_base64(data_list[10+i])
         for i in range(mypart.group_size):
-            mypart.state['R'][i] = binascii.a2b_base64(data_list[11+mypart.group_size+i])
+            mypart.state['R'][i] = binascii.a2b_base64(data_list[10+mypart.group_size+i])
 
 def saveState(mypart, num):
     file_name = 'ex_data/example'+str(num)+'.dat'
     passphrase = '1'
     with encFile(file_name, passphrase) as f:
-        f.write(binascii.b2a_base64(mypart.state['HK']))
         f.write(binascii.b2a_base64(mypart.state['MK']))
         f.write(binascii.b2a_base64(mypart.state['RK']))
         f.write(binascii.b2a_base64(mypart.state['v']))
@@ -178,14 +176,12 @@ while True:
                 DHR = DHR + p0.state['initpubR'][i]
             DHR = hashlib.sha256(DHR).digest()
             exec('RK = hashlib.sha256(DHR + p' + str(encrypter) + '.genDH(v, DHR)).digest()')
-            HK = pbkdf2(RK, b'\x01', 10, prf='hmac-sha256')
-            MK = pbkdf2(RK, b'\x03', 10, prf='hmac-sha256')
+            MK = pbkdf2(RK, b'\x01', 10, prf='hmac-sha256')
             for i in range(len(participants)):
                 exec('p' + str(i) + '.ratchetKey = deepcopy(p' + str(i) + '.state["initr"])')
                 exec('p' + str(i) + '.state["v"] = deepcopy(v)')
                 exec('p' + str(i) + '.state["R"] = deepcopy(p' + str(i) + '.state["initpubR"])')
                 exec('p' + str(i) + '.state["RK"] = deepcopy(RK)')
-                exec('p' + str(i) + '.state["HK"] = deepcopy(HK)')
                 exec('p' + str(i) + '.state["MK"] = deepcopy(MK)')
             # exec() doesn't like null bytes
             p0.state['digest'] = '\x00' * 32
