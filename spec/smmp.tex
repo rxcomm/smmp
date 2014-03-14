@@ -50,7 +50,7 @@ We describe a new secure, multi-party, synchronous communication protocol.
 The protocol follows a peer-to-peer model and provides perfect forward
 secrecy, perfect future secrecy, and plausible deniability for participants in
 a multi-party conversation, as long as at least two participants are honest.
-The protocol uses the Burmester-Desmedt group key agreement
+The protocol uses a three-round, authenticated Burmester-Desmedt group key agreement
 protocol to generate a shared secret between a group $N$ of participants.
 Conversation participants authenticate to each other
 during key agreement via a triple Diffie-Hellman exchange.
