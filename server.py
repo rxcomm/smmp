@@ -64,7 +64,7 @@ def receiveData(client, address, index):
             if data != '':
                 if LOGTRAFFIC:
                     with open('server.traffic.log', 'a') as f:
-                        f.write(binascii.b2a_base64(data))
+                        f.write(binascii.b2a_base64(data[3:]))
                 for i, item in client_list.iteritems():
                     try:
                         if (data[:3] != '998' and client != item) and (data[:3] == '999' or int(data[:3]) == i):
