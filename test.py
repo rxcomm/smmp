@@ -196,7 +196,7 @@ while True:
 
         print
         print '\x1b[;32m Message encrypted by P'+str(encrypter)+'\x1b[0m'
-        print '---------------------------------------------------------'
+        print '----------------------------------------------------------'
         command = 'ciphertexts = p'+str(encrypter)+'.encrypt("This message was encrypted by P" + str(encrypter))'
         exec(command)
 
@@ -205,7 +205,7 @@ while True:
             second_decryption = False
             try:
                 try:
-                    print 'P'+str(i)+': '+eval(participants[i]+'.decrypt(ciphertexts[i][3:])') + ' and decrypted by P' + str(i)
+                    print ' P'+str(i)+': '+eval(participants[i]+'.decrypt(ciphertexts[i][3:])') + ' and decrypted by P' + str(i)
                 except KeyError:
                     raise BummerUndecryptable
                 if try_twice == 0:
@@ -216,10 +216,10 @@ while True:
                         raise BummerUndecryptable
             except (BummerUndecryptable, BadHMAC):
                 if not second_decryption:
-                    print '* P'+str(i)+': Decryption Error!'
+                    print '\x1b[;41m*P'+str(i)+'\x1b[0m: Decryption Error!'
                 else:
-                    print '* P'+str(i)+': Error Decrypting Second Time!'
-        print '---------------------------------------------------------'
+                    print '\x1b[;41m*P'+str(i)+'\x1b[0m: Error Decrypting Second Time!'
+        print '----------------------------------------------------------'
         print
         print '\x1b[;32mNotes:\x1b[0m'
         print '\x1b[;32m1. Forward secrecy implies that no one can decrypt previous messages.\x1b[0m'
