@@ -87,7 +87,7 @@ recently improved the security of GOTR/mpOTR using a Burmester-Desmedt group
 key agreement mechanism imposed on top of a network comprised of binary
 encrypted channels between participants.
 
-In this paper, we describe a novel secure multi-party messaging protocol with a
+In this paper, we describe a novel secure multi-party messaging protocol (SMMP) with a
 simple key-agreement algorithm that provides perfect forward secrecy (PFS),
 perfect future secrecy (PFuS),
 and plausible deniability (PD) for participants in a group conversation. Our protocol
@@ -95,7 +95,14 @@ is a peer-to-peer protocol, whereby each participant (peer) contributes new
 key material to the group key set with each message sent.
 This key-update mechanism is called a ratchet.
 In contrast to the various mpOTR/GOTR proposals, no constraints on the security
-of the underlying transport layer are required.
+of the underlying transport layer are required during key agreement or otherwise.
+
+SMMP make use of six underlying cryptographic primitives, namely: 1) an
+underlying (unspecified) symmetric encryption algorithm, 2) the elliptic-curve
+Diffie-Hellman key agreement protocol, 3) the finite-field Diffie-Hellman key
+agreement protocol, 4) a secure cryptographic hash function, 5) a secure
+cryptographic message authentication code, and 6) a secure key-derivation
+function.
 
 \section{\label{sec:keypoints}Key Points}
 \begin{itemize}
@@ -174,7 +181,7 @@ for group key agreement. The improved mpOTR/GOTR is imposed on an
 underlying network of secure, binary communication channels that exist between
 participants.
 The improved mpOTR/GOTR protocol requires an underlying network of binary
-encrypted channels between adjacent users in the network,
+encrypted channels between adjacent users in the network and
 six exchanges to complete group key agreement,
 and does not provide either PFS or PFuS.
 The Liu group demonstrated their protocol with a Pidgin\cite{ref:pidgin} plugin.
@@ -195,15 +202,15 @@ The following notation is used:
 Organizer)
 \item $\oplus$ is the bitwise XOR operator
 \item $\{N_i\}$ is the set of all $N_i$ and $\{N_i\}_m = N_m$.
-\item $\oplus_{j \ne i} \, x_j$ means bitwise XOR of all $x_j$ except $x_i$.
-\item  $\oplus_i \, x_i$ means bitwise XOR of all $x_i$.
 \item $\mathcal{\hat{A}}_i$ is the ratchet state for
 participant $P_i$.
 \item $||$ is the concatenation operator
 \item $||_i \, x_i$ means concatenation of all $x_i$ running from the smallest
 index $i$ to the largest
-\item Lower case keys are private ECDH keys.
-\item Upper case keys are public ECDH keys.
+\item Lower case keys are private ECDH (or DH in the case of the group
+key-agreement handshake) keys.
+\item Upper case keys are public ECDH (or DH in the case of the group
+key-agreement handshake) keys.
 \item hash() is a secure, one-way cryptographic hash function.
 \item hmac$(k,m)$ is a secure hashing message authentication function that
 hashes a message $m$ using key $k$.
@@ -226,9 +233,8 @@ Each Participant $P_j$ will maintain the following state variables in persistent
 storage:
 \begin{itemize}
 \item RK - the root key
-\item HK - the header key
 \item mk - the message key
-\item $v$ - the group private ratchet key
+\item $v$ - the group private key
 \item $\mathrm{conv\_digest}$ - the digest of all conversation messages so far
 \item $r_j$ - the participant private ratchet key (for participant $P_j$,
 $\mathrm{ECDH}(r_j, X) = R_j$)
@@ -307,7 +313,8 @@ $ \mathrm{conv\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$.
 ciphertexts $c_{i}^\prime = e(\mathrm{mk}, j
 \, || \, R_j^{new} \, \oplus \, \mathrm{hash}(\mathrm{ECDH}(r_j, R_i)) \, \oplus
 \, \mathrm{conv\_digest} \, || \, m)$.
-\item Participant $P_j$ computes the set of $N-1$ hmacs $c_{hmaci} = \mathrm{hmac}(v, c_i)$.
+\item Participant $P_j$ computes the set of $N-1$ hmacs $c_{hmaci} =
+\mathrm{hmac}(v, c_i^\prime)$.
 \item Participant $P_j$ forms the set of $N-1$ ciphertexts $c_i = c_i^\prime \, || \, c_{hmaci}$.
 \item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_j$ as
 follows:\\
@@ -315,7 +322,9 @@ $(r_i, R_i) = (r_i^{new}, R_i^{new})$, \\
 $\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v, ||_i
 \, R_i))$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$.
-\item Participant $P_j$ sends $c_i $ to participant $P_i$ for all participants.
+\item Participant $P_j$ sends $c_i $ to participant $P_i$ for all participants,
+using a collision-avoidance algorithm that should be transport-specific and is
+unspecified here.
 \end{enumerate}
 
 \section{\label{sec:receiving}Receiving Messages}
@@ -440,7 +449,7 @@ procedures (this may be automated):
 \, || \, j \, || \, v^{new} \, || \, R^{new})$.
 \item Participant $P_j$ computes hmac $c_{hmac} = \mathrm{hmac}(v, c^\prime)$.
 \item Participant $P_j$ forms $c = c^\prime \, || \, c_{hmac}$.
-\item Participant $P_j$ delays according to a backoff algorithm
+\item Participant $P_j$ delays according to a collision-avoidance algorithm
 that should be transport-specific and is unspecified here.
 \item Participant $P_j$ tests resync\_required to see if it is still
 \textit{True}. If not, a resynchronization message was received and no further
@@ -492,6 +501,72 @@ adversary, and a privacy adversary. We further assume that at least two group
 participants are honest. Online judges (members of the group) can
 be considered a subset of the dishonest participants. Both online and offline
 judges will be used to determine if the goals of the protocol have been met.
+In the following, we provide a performance analysis of the protocol in the
+context of these three adversaries.
+
+\textit{Security Adversary} - The security adversary is a global adversary that
+is capable of monitoring all network traffic between group participants during
+the group conversation.  The security adversary is not permitted to interact
+with conversation participants in any way prior to the completion of the
+conversation. However, following the conversation, he may ask for static or
+private information of any group participant.
+The goal of the security adversary is to read
+messages he is not entitled to, and the security adversary wins if he can read
+at least one such message.
+
+In our protocol, message privacy is obtained via the use of an unspecified
+symmetric encryption algorithm where the encryption key changes in an
+indeterminate way with every message. The security adversary described
+above will only have access to ciphertext messages. Any recovery of keys
+following the completion of the group conversation will not provide access to
+the message encryption keys due to the forward secrecy properties of the
+protocol. Assuming that the security adversary is computationally bounded and
+the symmetric encryption algorithm is resistant to ciphertext-only attacks, the
+security adversary will not be able to decrypt and read conversation messages.
+
+\textit{Consensus Adversary} - The consensus adversary may participate in the
+conversation or control others in their participation. The goal of the consensus
+adversary is to get an honest participant to believe that his transcript of the
+conversation is a match to the group conversation when it does not match.
+
+Our protocol contains a conversation digest mechanism that is updated with the
+transmission of each conversation message. This digest the message receiver to
+be confident that the message received was identical to the message sent.
+Further, the digest is updated with each message during the conversation until a
+resynchronization event is requested. Assuming that the cryptographic hash
+function used to compute the conversation digest is collision-resistant, a
+computationally-bounded consensus adversary will not be able to convince a
+participant that a forged transcript is true.
+
+Further, due to the forward-secrecy properties of our protocol, replay attacks
+will not be successful. Even messages with identical plaintexts will be
+encrypted with different ephemeral message keys, and therefore uniquely
+identifiable.
+
+\textit{Privacy Adversary} - The privacy adversary may participate in the
+conversation or control others in their participation. The goal of the consensus
+adversary is to convince a judge (either online - a current participant in the
+conversation, or offline - an entity that did not participate in the
+conversation, but has a complete transcript of the conversation available)
+that an honest participant in the conversation actually took part in the
+conversation by reading or sending messages to the other participants in the
+conversation.
+
+In our protocol, all participants authenticate to each other via a triple ECDH
+exchange using their long-term identity key, as well as an ephemeral ratchet
+key. Assuming the computational ECDH problem is hard, each participant is
+confident that all other members of the group have knowledge of their identity
+private keys and ephemeral ratchet keys (here proof of knowledge of the private
+identity key constitutes proof of identity). However, since the result of the
+authentication mechanism is the generation of a shared secret between two
+parties, it is possible for this authentication to be faked by one of the two
+parties. As a result, it is not possible to prove - in an information-theoretic
+sense - that any single party was authenticated at the key-agreement stage of
+the conversation.  As long as at least two parties in the group conversation are
+honest, it is possible for a transcript of a conversation to be generated
+involving a particular participant that did not actually involve that
+participant. In other words, as long as at least two parties to the conversation
+are honest, our protocol guarantees information-theoretic plausible deniability.
 
 \subsection{\label{sec:networkmodel}Network Model}
 The network model used by SMMP is that of a fully-connected graph.
@@ -514,9 +589,23 @@ sub-conversations.
 Extending SMMP to cover multiple sub-conversations with a group will be
 described in a later paper.
 
+\section{\label{sec:implementation}Implementation}
 Finally, we note that we have developed a reference
-implementation\cite{ref:referenceimplementation} of SMMP. The reference
-implementation uses an echo server to forward messages to users.
+implementation\cite{ref:referenceimplementation} of SMMP.
+The reference implementation is built using the following six cryptographic
+primitives:
+\begin{enumerate}
+\item the AES256 symmetric encryption algorithm
+\item ECDH on curve25519
+\item DH with generator $g=2$ where $p$ is the 2048-bit MODP prime from RFC 3526
+\item the SHA256 hash function
+\item the HMAC message authentication code
+\item the PBKDF2 key derivation function
+\end{enumerate}
+Our reference implementation uses a simple TDMA algorithm for
+collision-avoidance with both conversation message and resynchronization
+packets.
+
 \begin{thebibliography}{99}
 \bibitem{ref:bian} J. Bian, R. Seker, and U. Topaloglu ``Off-the-Record Instant
 Messaging for Group Conversation," \textit{IRI '07: Proceedings of Information
