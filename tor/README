@@ -1,0 +1,26 @@
+If you want to run server.py as a hidden service and connect your
+instance of smmpchat.py to it via tor, the following suggestions
+may be helpful:
+
+1) Edit server.py to make sure it binds to localhost only
+
+     HOST = 'localhost'
+
+2) On the server machine, set up a hidden service to listen to
+   the port specified in server.py (50000 is the default).
+
+3) On the server machine start tor and server.py
+
+4) On each of the client machines, run the socat.sh script that
+   is available in this directory. This will proxy all packets
+   sent on the local port through tor to port 50000 on the tor
+   hidden service server. Change SMMP_SERVER_PORT in the socat
+   script if you change the server.py port.
+
+5) On the client machine start tor.
+
+6) On the client machine start smmpchat.py. HOST should be localhost
+   and port should be the local port you specified in the socat
+   script.
+
+Enjoy!
