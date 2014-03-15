@@ -267,7 +267,7 @@ on the ordering of the participant public identity keys.
 Each each group participant $P_j$ then completes the following steps:
 \begin{enumerate}
 \item Participant $P_j$ generates an ephemeral ECDH ratchet key pair $(r_j,
-R_j)$, and an ephemeral cyclic-group DH handshake key pair $(h_j, H_j)$.
+R_j)$, and an ephemeral finite-field DH handshake key pair $(h_j, H_j)$.
 \item Participant $P_j$ broadcasts $B_j$ and $R_j$.
 \item Participant $P_j$ computes the set of keys: \\ $k_{TDHi} =
 \mathrm{hash}(\mathrm{ECDH}(b_j, R_i) \, ||
@@ -293,7 +293,7 @@ K_{j+1}^{N-2} \cdots K_{j-2} \mod p )$
 $\mathcal{\hat{A}}_j$:\\
 $\mathrm{RK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}00)$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}01)$, \\
-$v = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}04)$, \\
+$v = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}02)$, \\
 $\mathrm{conv\_digest} = 0\mathrm{x}00 * 32$, \\
 $r_j$ from step 1, \\
 $r_j^{init} = r_j$, \\
