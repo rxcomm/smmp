@@ -209,7 +209,7 @@ def l2s(n):
 def sendThread(sock, mypart, SLOTTIME):
     global msg_data
     stime = float(SLOTTIME)/4.0
-    grp = SLOTTIME * mypart.group_size
+    grp = float(SLOTTIME * mypart.group_size)
     my = float(SLOTTIME * mypart.state['my_index'])
     while abs((time() % grp) - my) >= stime:
         sleep(0.01 * SLOTTIME)
@@ -300,7 +300,7 @@ def chatThread(sock, mypart, myname):
             if myname+':> .resync' in data or mypart.resync_required:
                 lock.release()
                 mypart.resync_required = True
-                msg = mypart.resyncSend(sock)
+                msg = mypart.resyncSend(sock, SLOTTIME)
                 lock.acquire()
                 input_win.clear()
                 input_win.addstr(myname+':> ')

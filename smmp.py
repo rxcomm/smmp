@@ -194,11 +194,11 @@ class Participant:
                  else:
                      print key + ': ' + str(self.state[key])
 
-    def resyncSend(self, sock):
-        SLOTTIME = 1 # TDMA timeslot width for resync packets (integer seconds)
-        grp = SLOTTIME * self.group_size
-        my = SLOTTIME * self.state['my_index']
-        while int(time()) % grp != my:
+    def resyncSend(self, sock, SLOTTIME):
+        stime = float(SLOTTIME)/4.0
+        grp = float(SLOTTIME * self.group_size)
+        my = float(SLOTTIME * self.state['my_index'])
+        while abs((time() % grp) - my) >= stime:
             sleep(0.01 * SLOTTIME)
             if not self.resync_required:
                 return 'Resync send message aborted'

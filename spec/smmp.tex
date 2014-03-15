@@ -48,8 +48,9 @@ floatfix,
 \begin{abstract}
 We describe a new secure, multi-party, synchronous communication protocol.
 The protocol follows a peer-to-peer model and provides perfect forward
-secrecy, perfect future secrecy, and plausible deniability for participants in
-a multi-party conversation, as long as at least two participants are honest.
+secrecy and perfect future secrecy against a computationally-bounded adversary,
+as well as information-theoretic plausible deniability for participants in
+a multi-party conversation.
 The protocol uses a three-round, authenticated Burmester-Desmedt group key agreement
 protocol to generate a shared secret between a group $N$ of participants.
 Conversation participants authenticate to each other
@@ -88,9 +89,10 @@ key agreement mechanism imposed on top of a network comprised of binary
 encrypted channels between participants.
 
 In this paper, we describe a novel secure multi-party messaging protocol (SMMP) with a
-simple key-agreement algorithm that provides perfect forward secrecy (PFS),
-perfect future secrecy (PFuS),
-and plausible deniability (PD) for participants in a group conversation. Our protocol
+simple key-agreement algorithm that provides perfect forward secrecy (PFS) and
+perfect future secrecy (PFuS) against a computationally-bounded adversary,
+as well as information-theoretic plausible deniability (PD) for participants
+in a group conversation. Our protocol
 is a peer-to-peer protocol, whereby each participant (peer) contributes new
 key material to the group key set with each message sent.
 This key-update mechanism is called a ratchet.
@@ -497,8 +499,8 @@ the group of any participant during the conversation or after the conversation h
 Further, we adopt the same threat model as did Goldberg
 \textit{et.al}\cite{ref:goldberg}. In particular, we analyze the robustness of
 the protocol to three types of adversaries, a security adversary, a consensus
-adversary, and a privacy adversary. We further assume that at least two group
-participants are honest. Online judges (members of the group) can
+adversary, and a privacy adversary.
+Online judges (members of the group) can
 be considered a subset of the dishonest participants. Both online and offline
 judges will be used to determine if the goals of the protocol have been met.
 In the following, we provide a performance analysis of the protocol in the
