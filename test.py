@@ -152,6 +152,8 @@ while True:
                     pass
                 elif key == 'initpubR':
                     pass
+                elif key == 'RK':
+                    pass
                 elif key == 'digest':
                     print 'dgt: '+hilite(binascii.b2a_base64(p0.state[key]).strip(), chg)
                 else:
@@ -163,7 +165,7 @@ while True:
 
         encrypter = randint(0,7)
 
-        resync = randint(0,3)
+        resync = randint(0,10)
         if resync == 0:
             exec('vnew, pVnew = p' + str(encrypter) + '.genKey()')
             exec('rnew, pRnew = p' + str(encrypter) + '.genKey()')
