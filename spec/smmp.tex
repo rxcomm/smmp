@@ -52,7 +52,7 @@ secrecy and perfect future secrecy against a computationally-bounded adversary,
 as well as information-theoretic plausible deniability for participants in
 a multi-party conversation.
 The protocol uses a three-round, authenticated Burmester-Desmedt group key agreement
-protocol to generate a shared secret between a group $N$ of participants.
+protocol to generate a shared secret between a group of $N$ participants.
 Conversation participants authenticate to each other
 during key agreement via a triple Diffie-Hellman exchange.
 Individual message keys are updated after receipt of each message by incorporating
@@ -309,20 +309,18 @@ Participants wanting to send a message will proceed as follows:
 participants, he forms a message $m$.
 \item Participant $P_j$ generates a new ephemeral ratchet key
 $(r_j^{new},R_j^{new})$.
-\item Participant $P_j$ computes a new conversation digest
-$ \mathrm{conv\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$.
 \item For all $i \ne j$, participant $P_j$ computes the set of $N-1$ preliminary
 ciphertexts $c_{i}^\prime = e(\mathrm{mk}, j
-\, || \, R_j^{new} \, \oplus \, \mathrm{hash}(\mathrm{ECDH}(r_j, R_i)) \, \oplus
-\, \mathrm{conv\_digest} \, || \, m)$.
+\, || \, R_j^{new} \, \oplus \, \mathrm{hash}(\mathrm{ECDH}(r_j, R_i)) \, || \, m)$.
 \item Participant $P_j$ computes the set of $N-1$ hmacs $c_{hmaci} =
 \mathrm{hmac}(v, c_i^\prime)$.
 \item Participant $P_j$ forms the set of $N-1$ ciphertexts $c_i = c_i^\prime \, || \, c_{hmaci}$.
+\item Participant $P_j$ updates $\mathrm{conv\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$.
 \item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_j$ as
 follows:\\
 $(r_i, R_i) = (r_i^{new}, R_i^{new})$, \\
-$\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v, ||_i
-\, R_i))$, \\
+$\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v,
+\mathrm{conv\_digest} \, || \, ||_i \, R_i))$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$.
 \item Participant $P_j$ sends $c_i $ to participant $P_i$ for all participants,
 using a collision-avoidance algorithm that should be transport-specific and is
@@ -345,11 +343,12 @@ Section \ref{sec:receivehousekeeping}.
 \item Participant $P_j$ computes a new conversation digest
 $\mathrm{conv\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$.
 \item Participant $P_j$ sets $R_q = R \, \oplus \,
-\mathrm{hash}(\mathrm{ECDH}(r_j, R_q)) \, \oplus \, \mathrm{conv\_digest}$.
+\mathrm{hash}(\mathrm{ECDH}(r_j, R_q))$.
+\item Participant $P_j$ updates $\mathrm{conv\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$.
 \item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_i$ as
 follows: \\
-$\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v, ||_i
-\, R_i))$, \\
+$\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v,
+\mathrm{conv\_digest} \, || \, ||_i \, R_i))$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$.
 
 \end{enumerate}
@@ -394,12 +393,13 @@ $0\mathrm{x}01$ & Instant Messaging Within SMMP & Section \ref{sec:imdecrypt}\\
 \end{tabular} \\
 \end{centering}
 \bigskip
-To determine the proper routing, the
-participant proceeds as follows:
+To determine the proper routing, participant $P_j$ proceeds as follows:
 \begin{enumerate}
-\item Participant $P_i$ computes $b \, || \, m = d(v, c^\prime)$. He/she then
+\item Participant $P_j$ computes $b \, || \, m = d(v, c^\prime)$. He/she then
 finds the value corresponding to byte $b$ in the table above, and sends message
 $m$ and control to that section.
+If this decryption fails, participant $P_j$ raises a Bad\_DIGEST exception and
+goes no further.
 \end{enumerate}
 \subsubsection{\label{sec:receiveresync}Resynchronizing the Ratchet State: $b =
 0\mathrm{x}00$}
@@ -465,7 +465,7 @@ $r_j = r^{new}$, \\
 $r_j^{init} = r^{new}$, \\
 $R_j^{init} = R^{new}$, \\
 $\{R_i\} = \{R_i^{init}\}$, \\
-$\mathrm{RK} = \mathrm{hash}(v \, || \, \mathrm{ECDH}(v, \oplus_i
+$\mathrm{RK} = \mathrm{hash}(v \, || \, \mathrm{ECDH}(v, ||_i
 \, R_i))$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
 $\mathrm{conv\_digest} = 0\mathrm{x}00 * 32$, \\

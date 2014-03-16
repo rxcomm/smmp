@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from smmp import Participant, BummerUndecryptable, BadHMAC
+from smmp import Participant, BummerUndecryptable, BadHMAC, BadDIGEST
 from contextlib import contextmanager
 from curve25519 import keys
 from passlib.utils.pbkdf2 import pbkdf2
@@ -214,7 +214,7 @@ while True:
                         print ' ' + eval(participants[i]+'.decrypt(ciphertexts[i][3:])')
                     except KeyError:
                         raise BummerUndecryptable
-            except (BummerUndecryptable, BadHMAC):
+            except (BummerUndecryptable, BadHMAC, BadDIGEST):
                 if not second_decryption:
                     print '\x1b[;41m*P'+str(i)+'\x1b[0m: Decryption Error!'
                 else:

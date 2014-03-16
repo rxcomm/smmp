@@ -114,10 +114,9 @@ class Participant:
     def encrypt(self, plaintext):
         rnew, Rnew = self.genKey()
         messages = {}
-        self.state['digest'] = self.strxor(self.state['digest'], hashlib.sha256(plaintext).digest())
         for i in range(self.group_size):
             if i != self.state['my_index']:
-                otp = self.strxor(hashlib.sha256(self.genDH(self.ratchetKey, self.state['R'][i])).digest(), self.state['digest'])
+                otp = hashlib.sha256(self.genDH(self.ratchetKey, self.state['R'][i])).digest()
                 encrypted_Rnew = self.strxor(Rnew, otp)
                 msg = self.enc(self.state['MK'], str(self.state['my_index']).zfill(3) + encrypted_Rnew + plaintext)
                 mac = hmac.new(self.state['v'], msg, hashlib.sha256).digest()
@@ -125,10 +124,11 @@ class Participant:
                 messages[i] = str(i).zfill(3) + msg + mac
         self.ratchetKey = rnew
         self.state['R'][self.state['my_index']] = Rnew
-        DHR = ''
+        DHR = self.state['digest']
         for i in range(self.group_size):
             DHR = DHR + self.genDH(self.state['v'], self.state['R'][i])
         DHR = hashlib.sha256(DHR).digest()
+        self.state['digest'] = self.strxor(self.state['digest'], hashlib.sha256(plaintext).digest())
         self.state['RK'] = hashlib.sha256(self.state['RK'] +
                    self.genDH(self.state['v'], DHR)).digest()
         self.state['MK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
@@ -158,13 +158,13 @@ class Participant:
             return self.resyncReceive(msg[:-32])
         Pnum = int(plaintext[:3])
 
-        self.state['digest'] = self.strxor(hashlib.sha256(plaintext[35:]).digest(), self.state['digest'])
-        otp = self.strxor(hashlib.sha256(self.genDH(self.ratchetKey, self.state['R'][Pnum])).digest(), self.state['digest'])
+        otp = hashlib.sha256(self.genDH(self.ratchetKey, self.state['R'][Pnum])).digest()
         self.state['R'][Pnum] = self.strxor(plaintext[3:35], otp)
-        DHR = ''
+        DHR = self.state['digest']
         for i in range(self.group_size):
             DHR = DHR + self.genDH(self.state['v'], self.state['R'][i])
         DHR = hashlib.sha256(DHR).digest()
+        self.state['digest'] = self.strxor(hashlib.sha256(plaintext[35:]).digest(), self.state['digest'])
         self.state['RK'] = hashlib.sha256(self.state['RK'] +
                    self.genDH(self.state['v'], DHR)).digest()
         self.state['MK'] = pbkdf2(self.state['RK'], b'\x01', 10, prf='hmac-sha256')
@@ -233,7 +233,7 @@ class Participant:
         except (DecodeError, ValueError):
             raise BummerUndecryptable
         if plaintext[:1] != '\x00' or len(plaintext) != 68 or ciphertext is None:
-            raise BummerUndecryptable
+            raise BadDIGEST
         else:
             self.resync_required = False
             self.state['v'] = hashlib.sha256(self.state['v'] + plaintext[4:36]).digest()
