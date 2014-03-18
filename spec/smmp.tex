@@ -54,7 +54,7 @@ a multi-party conversation.
 The protocol uses a three-round, authenticated Burmester-Desmedt group key agreement
 protocol to generate a shared secret between a group of $N$ participants.
 Conversation participants authenticate to each other
-during key agreement via a triple Diffie-Hellman exchange.
+during key agreement via a triple Diffie-Hellman mechansim.
 Individual message keys are updated after receipt of each message by incorporating
 new key material distributed by the sending participant.
 No security requirements are imposed on the underlying transport layer, and
@@ -64,6 +64,9 @@ upon receipt of each message, and all conversation messages are signed to
 verify proof of origin.
 All setup operations prior to group key agreement take place over an insecure
 channel.
+SMMP represents a significant improvement in security and efficiency over
+current secure, multi-party messaging protocols including GOTR, mpOTR, and
+improved GOTR.
 \end{abstract}
 
 \pacs{73.20.Mf}% PACS, the Physics and Astronomy
@@ -163,30 +166,42 @@ Bian \textit{et.al.}\cite{ref:bian} [Group Off The Record (GOTR)].
 The protocol is based on a virtual server,
 a participant that sets up a secure one-on-on channel with each member of the group.
 When members of the group who are not the virtual server wish to communicate
-with each other, they relay their messages through the virtual server. The
-problem with this approach is that there is no way for users to verify that they
-are getting a complete transcript of the group conversation. Trust in the
-virtual server is required, and a compromise of the virtual server would permit
-an attacker to follow the entire conversation, as well as learn the membership
-of the group.
+with each other, they relay their messages through the virtual server. Several
+problems with this approach were identified. First, the virtual server must be
+assumed honest. The virtual server handles decryption/reencryption from one user
+to another, as well as authentication of all group members. As a result, a
+dishonest server (or compromise of the server) would be catastrophic to the
+security of the group conversation. Second, the protocol leaks metadata. All
+addressing is sent in plaintext. And finally, there is no mechanism for
+conversation transcript verification. As a result of these problems with GOTR, a
+better solution was necessary.
 
 A second proposal for a secure group messaging protocol was made by Goldberg
 \textit{et.al.}\cite{ref:goldberg} [multi-party Off The Record (mpOTR)].
-While this protocol solved some of the
-problems associate with the Bian messaging scheme, it did not give a complete
-key-agreement algorithm. As a result, this protocol has never been successfully
-implemented.
+While this protocol solves some of the
+problems associate with the Bian messaging scheme, it has additional problems
+and is not a good solution. In particular, mpOTR provides PD against offline
+judges only. Further, it links all messages in a given transcript together,
+meaning that if an honest user commits to authoring or participation in a part
+of the transcript, they have committed to the entire transcript. Also, as with
+all OTR-based protocols, PD is achieved by publishing ephemeral keys
+post-conversation. Finally, the group encryption key is not automatically
+updated in mpOTR, and as a result, PFS is not guaranteed - a ``window of
+compromise" exists.
 
 An improvement of the security of the mpOTR/GOTR protocol was made by Liu
 \textit{et.al}\cite{ref:liu} using Burmester-Desmedt\cite{ref:burmester}
-for group key agreement. The improved mpOTR/GOTR is imposed on an
+for group key agreement. The improved mpOTR/GOTR requires an
 underlying network of secure, binary communication channels that exist between
 participants.
-The improved mpOTR/GOTR protocol requires an underlying network of binary
-encrypted channels between adjacent users in the network and
-six exchanges to complete group key agreement,
-and does not provide either PFS or PFuS.
-The Liu group demonstrated their protocol with a Pidgin\cite{ref:pidgin} plugin.
+Complexity of this improved mpOTR/GOTR protocol is an issue. For each group key
+update, a total of six rounds of group key agreement exchanges are required.
+Further, each participant must maintain the status for $2(N-1)$ virtual nodes.
+Thus, group key agreement appears to be a computationally-intensive task that
+may preclude conversation participants from updating their encryption keys on a
+per-message basis. Finally, as with all OTR-based schemes, publication of the
+ephemeral signing keys at the end of the conversation is required to facilitate
+PD.
 
 In this paper, we present a secure, peer-to-peer multi-party messaging protocol
 (SMMP) that provides PFS, PFuS, and PD, and has a simple key agreement
@@ -214,8 +229,8 @@ key-agreement handshake) keys.
 \item Upper case keys are public ECDH (or DH in the case of the group
 key-agreement handshake) keys.
 \item hash() is a secure, one-way cryptographic hash function.
-\item hmac$(k,m)$ is a secure hashing message authentication function that
-hashes a message $m$ using key $k$.
+\item mac$(k,m)$ is a secure message authentication code that
+authenticates a message $m$ using key $k$.
 \item KDF() is a secure key derivation function, \textit{e.g.} pbkdf2.
 \item $c = e(k, m)$ and $m = d(k,c)$ are the underlying (unspecified) symmetric
 encryption and decryption algorithms that use a key $k$ to transform a plaintext
@@ -271,16 +286,16 @@ R_j)$, and an ephemeral finite-field DH handshake key pair $(h_j, H_j)$.
 \item Participant $P_j$ broadcasts $B_j$ and $R_j$.
 \item Participant $P_j$ computes the set of keys: \\ $k_{TDHi} =
 \mathrm{hash}(\mathrm{ECDH}(b_j, R_i) \, ||
-\, \mathrm{ECDH}(r_j, B_i) \, || \, \mathrm{ECDH}(r_j, R_i))$ \\ and hmacs: \\
-$\mathrm{mac}_i = \mathrm{hmac}(k_{TDHi}, H_j)$.
+\, \mathrm{ECDH}(r_j, B_i) \, || \, \mathrm{ECDH}(r_j, R_i))$ \\ and macs: \\
+$\mathrm{mac}_i = \mathrm{mac}(k_{TDHi}, H_j)$.
 \item Participant $P_j$ sends $H_j \, || \, \mathrm{mac}_i$ to participant $P_i$ for all
 participants.
 \item Participant $P_j$ receives $H_i \, || \, \mathrm{mac}_j$ from each
 participant $P_i$.
 \item For each participant $j \ne i$, participant $P_j$ computes the set of received keys:\\ $k_{r-TDHi} =
 \mathrm{hash}(\mathrm{ECDH}(r_j, B_i) \, ||
-\, \mathrm{ECDH}(b_j, R_i) \, || \, \mathrm{ECDH}(r_j, R_i))$ \\ and hmacs: \\
-$\mathrm{mac}_{r-i} = \mathrm{hmac}(k_{r-TDHi}, H_i)$.
+\, \mathrm{ECDH}(b_j, R_i) \, || \, \mathrm{ECDH}(r_j, R_i))$ \\ and macs: \\
+$\mathrm{mac}_{r-i} = \mathrm{mac}(k_{r-TDHi}, H_i)$.
 \item Participant $P_j$ tests if $\mathrm{mac}_{r-i} = \mathrm{mac}_j$. If this
 test fails, the identity of participant $P_i$ is not confirmed and $P_j$ goes no
 further.
@@ -312,9 +327,9 @@ $(r_j^{new},R_j^{new})$.
 \item For all $i \ne j$, participant $P_j$ computes the set of $N-1$ preliminary
 ciphertexts $c_{i}^\prime = e(\mathrm{mk}, j
 \, || \, R_j^{new} \, \oplus \, \mathrm{hash}(\mathrm{ECDH}(r_j, R_i)) \, || \, m)$.
-\item Participant $P_j$ computes the set of $N-1$ hmacs $c_{hmaci} =
-\mathrm{hmac}(v, c_i^\prime)$.
-\item Participant $P_j$ forms the set of $N-1$ ciphertexts $c_i = c_i^\prime \, || \, c_{hmaci}$.
+\item Participant $P_j$ computes the set of $N-1$ macs $c_{maci} =
+\mathrm{mac}(v, c_i^\prime)$.
+\item Participant $P_j$ forms the set of $N-1$ ciphertexts $c_i = c_i^\prime \, || \, c_{maci}$.
 \item Participant $P_j$ updates $\mathrm{conv\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$.
 \item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_j$ as
 follows:\\
@@ -331,8 +346,8 @@ unspecified here.
 Participants receiving a message will proceed as follows:
 \begin{enumerate}
 \item Upon receipt of a ciphertext $c$, participants $P_j$ separates $c$ into
-$c^\prime$ and $c_{hmac}$ parts.
-\item Participant $P_j$ tests if $\mathrm{hmac}(v, c^\prime) = c_{hmac}$. If
+$c^\prime$ and $c_{mac}$ parts.
+\item Participant $P_j$ tests if $\mathrm{mac}(v, c^\prime) = c_{mac}$. If
 they do not match, he/she raises a Bad\_HMAC exception and goes no further.
 \item Participant $P_j$ obtains $q \, || \, R \, || \, m =
 d(\mathrm{mk}, c^\prime)$.
@@ -367,9 +382,9 @@ $s_i$ and $S_j$ already exist.
 \item Participant $P_i$ generates a new one-on-one ratchet key $(t_i, T_i)$.
 \item Participant $P_i$ forms preliminary ciphertexts $c_h = e(v, S_j), 0\mathrm{x}01
 \, || \, T_i)$ and $c_m = e(\mathrm{ECDH}(s_i, S_j), m)$.
-\item Participant $P_i$ forms $c^\prime = c_h \, || \, c_m$ and computes $c_{hmac} =
-\mathrm{hmac}(v, c^\prime)$.
-\item Participant $P_i$ sends $c = c^\prime \, || \, c_{hmac}$ to $P_j$.
+\item Participant $P_i$ forms $c^\prime = c_h \, || \, c_m$ and computes $c_{mac} =
+\mathrm{mac}(v, c^\prime)$.
+\item Participant $P_i$ sends $c = c^\prime \, || \, c_{mac}$ to $P_j$.
 \end{enumerate}
 Decryption is a straightforward reversal of this process.
 
@@ -449,8 +464,8 @@ procedures (this may be automated):
 \item Participant $P_j$ generates a new ratchet key  pair $(r^{new}, R^{new})$.
 \item participant $P_j$ computes preliminary ciphertext $c^\prime = e(v, 0\mathrm{x}00
 \, || \, j \, || \, v^{new} \, || \, R^{new})$.
-\item Participant $P_j$ computes hmac $c_{hmac} = \mathrm{hmac}(v, c^\prime)$.
-\item Participant $P_j$ forms $c = c^\prime \, || \, c_{hmac}$.
+\item Participant $P_j$ computes mac $c_{mac} = \mathrm{mac}(v, c^\prime)$.
+\item Participant $P_j$ forms $c = c^\prime \, || \, c_{mac}$.
 \item Participant $P_j$ delays according to a collision-avoidance algorithm
 that should be transport-specific and is unspecified here.
 \item Participant $P_j$ tests resync\_required to see if it is still
