@@ -114,6 +114,8 @@ function.
 \item Burmester-Desmedt\cite{ref:burmester} group key agreement
 takes place using finite-field, cyclic-group
 Diffie-Hellman key agreement as the underlying protocol.
+\item Participants authenticate each other during group key agreement via a
+triple Diffie-Hellman mechansim.
 \item During the conversation, elliptic curve Diffie-Hellman key operations
 are performed, minimizing the required key-exchange bandwidth.
 \item The protocol is synchronous. A method for resynchronizing those
@@ -368,26 +370,6 @@ $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$.
 
 \end{enumerate}
 
-\section{\label{sec:im}One-On-One Messaging Within SMMP}
-Participants in the group may exchange one-on-one messages with other group
-participants using the group infrastructure. If participant $P_i$ wishes to
-message participant $P_j$, he/she proceeds as follows:
-\begin{enumerate}
-\item Participant $P_i$ forms a message $m$.
-\item If this is the first private message with $P_j$, participant $P_i$ makes
-a copy of his current private ratchet key $r_i$
-($s_i$) as well as participant $P_j$'s current public ratchet key $R_j$ ($S_j$).
-If this is not the first private message $P_i$ has exchanged with $P_j$,
-$s_i$ and $S_j$ already exist.
-\item Participant $P_i$ generates a new one-on-one ratchet key $(t_i, T_i)$.
-\item Participant $P_i$ forms preliminary ciphertexts $c_h = e(v, S_j), 0\mathrm{x}01
-\, || \, T_i)$ and $c_m = e(\mathrm{ECDH}(s_i, S_j), m)$.
-\item Participant $P_i$ forms $c^\prime = c_h \, || \, c_m$ and computes $c_{mac} =
-\mathrm{mac}(v, c^\prime)$.
-\item Participant $P_i$ sends $c = c^\prime \, || \, c_{mac}$ to $P_j$.
-\end{enumerate}
-Decryption is a straightforward reversal of this process.
-
 \section{\label{sec:housekeeping}Protocol Housekeeping}
 Here we list several protocol housekeeping operations that may be necessary.
 The list may be extended if other useful operations are identified.
@@ -403,7 +385,7 @@ housekeeping tasks are (currently there are 2): \\
 Byte Value & Housekeeping Task & Location \\
 \hline
 $0\mathrm{x}00$ & Resynchronizing the Ratchet State  & Section \ref{sec:receiveresync}\\
-$0\mathrm{x}01$ & Instant Messaging Within SMMP & Section \ref{sec:imdecrypt}\\
+$0\mathrm{x}01$ & Instant Messaging Within SMMP & Section \ref{sec:im}\\
 \hline
 \end{tabular} \\
 \end{centering}
@@ -448,6 +430,27 @@ protocol again, and including the new participant.
 Members may drop from the group simply by not updating their ratchet state.
 Further, the group may remove a participant by running the key agreement part of the
 protocol again without the dropped participant.
+
+\subsubsection{\label{sec:im}One-On-One Messaging Within SMMP: $b =
+0\mathrm{x}01$}
+Participants in the group may exchange one-on-one messages with other group
+participants using the group infrastructure. If participant $P_i$ wishes to
+message participant $P_j$, he/she proceeds as follows:
+\begin{enumerate}
+\item Participant $P_i$ forms a message $m$.
+\item If this is the first private message with $P_j$, participant $P_i$ makes
+a copy of his current private ratchet key $r_i$
+($s_i$) as well as participant $P_j$'s current public ratchet key $R_j$ ($S_j$).
+If this is not the first private message $P_i$ has exchanged with $P_j$,
+$s_i$ and $S_j$ already exist.
+\item Participant $P_i$ generates a new one-on-one ratchet key $(t_i, T_i)$.
+\item Participant $P_i$ forms preliminary ciphertexts $c^\prime =
+e(\mathrm{hash}(\mathrm{ECDH}(s_i, S_j), 0\mathrm{x}01
+\, || \, T_i \, || \, m)$.
+\item Participant $P_i$ computes $c_{mac} = \mathrm{mac}(v, c^\prime)$.
+\item Participant $P_i$ sends $c = c^\prime \, || \, c_{mac}$ to $P_j$.
+\end{enumerate}
+Decryption is a straightforward reversal of this process.
 
 \subsection{\label{sec:sendhousekeeping}Message Send Housekeeping}
 It may be necessary at some point to send housekeeping messages. This section
@@ -507,12 +510,15 @@ part of the group communication.
 \item Future secrecy - The protocol should provide PFuS for all future messages
 to be sent as part of the group communication.
 \item Plausible Deniability - The protocol should provide PD such that a
-transcript of the group conversation cannot be used to prove the membership in
+transcript of the group conversation cannot be used to prove the membership or
+participation in
 the group of any participant during the conversation or after the conversation has completed.
 \end{itemize}
+SMMP, as described above, achieves each of these requirements.
 
-Further, we adopt the same threat model as did Goldberg
-\textit{et.al}\cite{ref:goldberg}. In particular, we analyze the robustness of
+Further, we adopt a generalized version of the threat model from Goldberg
+\textit{et.al}\cite{ref:goldberg} that includes the possibility of both online
+and offline judges. In particular, we analyze the robustness of
 the protocol to three types of adversaries, a security adversary, a consensus
 adversary, and a privacy adversary.
 Online judges (members of the group) can
@@ -534,12 +540,14 @@ at least one such message.
 In our protocol, message privacy is obtained via the use of an unspecified
 symmetric encryption algorithm where the encryption key changes in an
 indeterminate way with every message. The security adversary described
-above will only have access to ciphertext messages. Any recovery of keys
+above may have access to some plaintext as well as all ciphertext messages.
+Any recovery of private keys
 following the completion of the group conversation will not provide access to
 the message encryption keys due to the forward secrecy properties of the
 protocol. Assuming that the security adversary is computationally bounded and
-the symmetric encryption algorithm is resistant to ciphertext-only attacks, the
-security adversary will not be able to decrypt and read conversation messages.
+the symmetric encryption algorithm is resistant to known-plaintext attacks, the
+security adversary will not be able to decrypt and read additional conversation
+messages beyond those recovered directly from a participant.
 
 \textit{Consensus Adversary} - The consensus adversary may participate in the
 conversation or control others in their participation. The goal of the consensus
@@ -570,7 +578,7 @@ conversation by reading or sending messages to the other participants in the
 conversation.
 
 In our protocol, all participants authenticate to each other via a triple ECDH
-exchange using their long-term identity key, as well as an ephemeral ratchet
+mechanism using their long-term identity key, as well as an ephemeral ratchet
 key. Assuming the computational ECDH problem is hard, each participant is
 confident that all other members of the group have knowledge of their identity
 private keys and ephemeral ratchet keys (here proof of knowledge of the private
@@ -579,16 +587,16 @@ authentication mechanism is the generation of a shared secret between two
 parties, it is possible for this authentication to be faked by one of the two
 parties. As a result, it is not possible to prove - in an information-theoretic
 sense - that any single party was authenticated at the key-agreement stage of
-the conversation.  As long as at least two parties in the group conversation are
-honest, it is possible for a transcript of a conversation to be generated
+the conversation. Thus,
+it is possible for a transcript of a conversation to be generated
 involving a particular participant that did not actually involve that
-participant. In other words, as long as at least two parties to the conversation
-are honest, our protocol guarantees information-theoretic plausible deniability.
+participant. In other words, 
+our protocol guarantees information-theoretic plausible deniability.
 
 \subsection{\label{sec:networkmodel}Network Model}
 The network model used by SMMP is that of a fully-connected graph.
-Operation of the network may be simplified somewhat by using an echo server to
-relay messages to all participants. The requirements for this echo server are
+Operation of the network may be simplified somewhat by using a routing server to
+relay messages to all participants. The requirements for this routing server are
 not great. It should not have decryption capability, and as a result does not
 need to maintain its own ratchet state. It merely needs to route messages based
 on routing information supplied by the sending participant. Providing such routing
@@ -605,6 +613,18 @@ than \textit{e.g.} $N = 20$ or so. Larger conversations tend to break into
 sub-conversations.
 Extending SMMP to cover multiple sub-conversations with a group will be
 described in a later paper.
+
+\subsection{\label{sec:cooperativeadversaries}Cooperative Adversaries}
+Finally, we argue here that both Privacy and Consensus adversaries will
+cooperate with the SMMP protocol during the conversation. Although it is
+certainly possible for these entities to exhibit disruptive behavior (drop,
+duplicate, reorder, and replay messages as well as spam and DoS attacks),
+such disruptive actions would serve no purpose. The perpetrator of such acts
+will be immediately identifiable to the other members of the group, and faced
+with such attacks we expect that the group would immediately re-form without the
+attacking group member. Thus, the adversarial group member would lose the
+ability to follow the plaintext conversation.  As a result all group members,
+adversarial or otherwise, are expected to faithfully follow the protocol.
 
 \section{\label{sec:implementation}Implementation}
 Finally, we note that we have developed a reference
