@@ -29,7 +29,7 @@ floatfix,
 
 \begin{document}
 
-\preprint{Version 0.5.0}
+\preprint{Version 0.5.1}
 
 \title{SMMP: A Secure Multi-Party Messaging Protocol}% Force line breaks with \\
 
@@ -54,7 +54,7 @@ a multi-party conversation.
 The protocol uses a three-round, authenticated Burmester-Desmedt group key agreement
 protocol to generate a shared secret between a group of $N$ participants.
 Conversation participants authenticate to each other
-during key agreement via a triple Diffie-Hellman mechansim.
+during key agreement via a triple Diffie-Hellman mechanism.
 Individual message keys are updated after receipt of each message by incorporating
 new key material distributed by the sending participant.
 No security requirements are imposed on the underlying transport layer, and
@@ -81,7 +81,7 @@ Secure multi-party messaging has been an elusive goal of security researchers
 for a long time. The initial group off-the-record (GOTR) `virtual server'
 approach\cite{ref:bian} was deemed unsatisfactory
 because it has the unfortunate drawback of not permitting all participants to
-confirm that they were receiving unmodified copies of all messages.
+confirm that they are receiving unmodified copies of all messages.
 A further attempt to solve this problem\cite{ref:goldberg} was incomplete
 because of the lack of a simple, secure key-agreement
 strategy. Work on the problem
@@ -102,7 +102,7 @@ This key-update mechanism is called a ratchet.
 In contrast to the various mpOTR/GOTR proposals, no constraints on the security
 of the underlying transport layer are required during key agreement or otherwise.
 
-SMMP make use of six underlying cryptographic primitives, namely: 1) an
+SMMP makes use of six underlying cryptographic primitives, namely: 1) an
 underlying (unspecified) symmetric encryption algorithm, 2) the elliptic-curve
 Diffie-Hellman key agreement protocol, 3) the finite-field Diffie-Hellman key
 agreement protocol, 4) a secure cryptographic hash function, 5) a secure
@@ -134,16 +134,16 @@ unspecified.
 \end{itemize}
 
 \section{\label{sec:background}Background}
-Various protocols exist for facilitating secure one-on-one messaging, including
+Various protocols exist for facilitating secure one-to-one messaging, including
 Off the Record Messaging (OTR)\cite{ref:otr1,ref:raimondo,ref:otr2,ref:otr3,ref:otr}, Silent Circle Instant Messaging Protocol
 (SCIMP)\cite{ref:scimp}, and Axolotl\cite{ref:axolotl}. Each of these protocols
 provides security through the use of ephemeral keys for symmetric encryption.
 The method of generating and exchanging these keys varies widely between the
 three protocols. All of the protocols provide forward
-secrecy. Some also provide plausible deniability. And one (Axolotl) also
+secrecy. Some also provide plausible deniability, and one (Axolotl) also
 provides perfect future secrecy (compromise of the current keyset does not cause
 compromise of future keysets). However, each of these protocols is limited to
-the one-on-one messaging case.
+the one-to-one messaging case.
 
 OTR was the first such protocol. It is based on an Advertise $\rightarrow$
 Acknowledge $\rightarrow$ Use method for key updating. OTR has been widely used
@@ -157,13 +157,13 @@ key is hashed to obtain the key for the next ratchet step. As a result, a key
 compromise at any point will permit an attacker to follow the conversation from
 that point on.
 
-Axolotl is the first one-on-one messaging protocol to provide future secrecy. In
+Axolotl is the first one-to-one messaging protocol to provide future secrecy. In
 this protocol, randomly-generated key data is mixed in to the ratchet state with
 each message send/receive operation, so that a compromised keyset permits an
 attacker access to only one message. Following the conversation requires a new
 key compromise with each message sent.
 
-The first proposal for a secure group $(N \ge 3)$ messaging protocol was that of
+The first proposal for a secure group $(N > 2)$ messaging protocol was that of
 Bian \textit{et.al.}\cite{ref:bian} [Group Off The Record (GOTR)].
 The protocol is based on a virtual server,
 a participant that sets up a secure one-on-on channel with each member of the group.
@@ -173,8 +173,8 @@ problems with this approach were identified. First, the virtual server must be
 assumed honest. The virtual server handles decryption/reencryption from one user
 to another, as well as authentication of all group members. As a result, a
 dishonest server (or compromise of the server) would be catastrophic to the
-security of the group conversation. Second, the protocol leaks metadata. All
-addressing is sent in plaintext. And finally, there is no mechanism for
+security of the group conversation. Second, the protocol leaks metadata.
+High-level addressing data is sent in plaintext. And finally, there is no mechanism for
 conversation transcript verification. As a result of these problems with GOTR, a
 better solution was necessary.
 
@@ -199,7 +199,7 @@ participants.
 Complexity of this improved mpOTR/GOTR protocol is an issue. For each group key
 update, a total of six rounds of group key agreement exchanges are required.
 Further, each participant must maintain the status for $2(N-1)$ virtual nodes.
-Thus, group key agreement appears to be a computationally-intensive task that
+Thus, group key agreement is a computationally-intensive task that
 may preclude conversation participants from updating their encryption keys on a
 per-message basis. Finally, as with all OTR-based schemes, publication of the
 ephemeral signing keys at the end of the conversation is required to facilitate
@@ -212,7 +212,7 @@ authentication between all peers).
 The protocol allows all group members to confirm that they are
 receiving a complete transcript of the group conversation, and provides a
 robust mechanism for resynchronization of the ratchet state if messages are lost
-because of failure of the underlying transport mechanism.
+(\textit{e.g.} because of failure of the underlying transport mechanism).
 
 \section{\label{sec:notation}Notation}
 The following notation is used:
@@ -225,7 +225,7 @@ Organizer)
 participant $P_i$.
 \item $||$ is the concatenation operator
 \item $||_i \, x_i$ means concatenation of all $x_i$ running from the smallest
-index $i$ to the largest
+to the largest index $i$
 \item Lower case keys are private ECDH (or DH in the case of the group
 key-agreement handshake) keys.
 \item Upper case keys are public ECDH (or DH in the case of the group
@@ -239,9 +239,9 @@ encryption and decryption algorithms that use a key $k$ to transform a plaintext
 $m$ into ciphertext $c$ and \textit{vice versa}.
 \item MK is a master key from which the initial ratchet state
 $\mathcal{\hat{A}}_i$ is computed by each participant $P_i$. This parameter is
-securely erased upon computing the initial ratchet state.
+securely erased after computing the initial ratchet state.
 \item $X$ is the generator for the elliptic curve and ECDH() is the Diffie-Hellman
-operator on the elliptic curve, \textit{i.e.} for private key $u$, the
+operator on the elliptic curve, \textit{i.e.}, for private key $u$, the
 corresponding public key is $U = \mathrm{ECDH}(u, X)$. The shared secret between
 $y$ and $z$ is then $ \mathrm{ECDH}(y,Z) = \mathrm{ECDH}(z,Y) =
 \mathrm{ECDH}(y,\mathrm{ECDH}(z, X))$.
@@ -281,11 +281,19 @@ number is distributed to all participants.
 assigning this index is application-dependent, and may $e.g.$ be assigned based
 on the ordering of the participant public identity keys.
 \end{enumerate}
-Each each group participant $P_j$ then completes the following steps:
+Following the preliminary steps listed above, each member of the group takes
+part in an authenticated Burmester-Desmedt group key exchange protocol (see Fig.
+\ref{fig:bd}). The
+authentication step prevents attackers from mounting man-in-the-middle attacks
+and is a variant of Just and Vaudenay\cite{ref:justvaudenay}.
+An initial ratchet state $\mathrm{\hat{A}}$ is computed from the BD master key.
+
+Each each group participant $P_j$ completes the following steps:
 \begin{enumerate}
 \item Participant $P_j$ generates an ephemeral ECDH ratchet key pair $(r_j,
 R_j)$, and an ephemeral finite-field DH handshake key pair $(h_j, H_j)$.
-\item Participant $P_j$ broadcasts $B_j$ and $R_j$.
+\item Participant $P_j$ broadcasts public identity key $B_j$ and ephemeral
+public ratchet key $R_j$.
 \item Participant $P_j$ computes the set of keys: \\ $k_{TDHi} =
 \mathrm{hash}(\mathrm{ECDH}(b_j, R_i) \, ||
 \, \mathrm{ECDH}(r_j, B_i) \, || \, \mathrm{ECDH}(r_j, R_i))$ \\ and macs: \\
@@ -294,7 +302,7 @@ $\mathrm{mac}_i = \mathrm{mac}(k_{TDHi}, H_j)$.
 participants.
 \item Participant $P_j$ receives $H_i \, || \, \mathrm{mac}_j$ from each
 participant $P_i$.
-\item For each participant $j \ne i$, participant $P_j$ computes the set of received keys:\\ $k_{r-TDHi} =
+\item For each participant $i \ne j$, participant $P_j$ computes the set of received keys:\\ $k_{r-TDHi} =
 \mathrm{hash}(\mathrm{ECDH}(r_j, B_i) \, ||
 \, \mathrm{ECDH}(b_j, R_i) \, || \, \mathrm{ECDH}(r_j, R_i))$ \\ and macs: \\
 $\mathrm{mac}_{r-i} = \mathrm{mac}(k_{r-TDHi}, H_i)$.
@@ -305,7 +313,8 @@ further.
 index $j$ is taken in a cycle. $P_j$ broadcasts $K_j$ to all participants $P_i$.
 \item Participant $P_j$ receives $K_i$ from each participant $P_i$ and
 computes:\\ $\mathrm{MK} = \mathrm{hash}(H_{j-1}^{ N h_j} \cdot K_j^{N-1} \cdot
-K_{j+1}^{N-2} \cdots K_{j-2} \mod p )$
+K_{j+1}^{N-2} \cdots K_{j-2} \mod p )$,\\
+where the index $j$ is taken in a cycle.
 \item Participant $P_j$ computes his/her initial ratchet state
 $\mathcal{\hat{A}}_j$:\\
 $\mathrm{RK} = \mathrm{KDF}(\mathrm{MK}, 0\mathrm{x}00)$, \\
@@ -320,9 +329,9 @@ resync\_required = \textit{False}.
 \end{enumerate}
 
 \section{\label{sec:sending}Sending Messages}
-Participants wanting to send a message will proceed as follows:
+Participants wanting to send a message proceed as follows:
 \begin{enumerate}
-\item When a participant $P_j$ wishes to communicate with the other
+\item When participant $P_j$ wishes to communicate with other
 participants, he forms a message $m$.
 \item Participant $P_j$ generates a new ephemeral ratchet key
 $(r_j^{new},R_j^{new})$.
@@ -345,9 +354,9 @@ unspecified here.
 \end{enumerate}
 
 \section{\label{sec:receiving}Receiving Messages}
-Participants receiving a message will proceed as follows:
+Participants receiving a message proceed as follows:
 \begin{enumerate}
-\item Upon receipt of a ciphertext $c$, participants $P_j$ separates $c$ into
+\item Upon receipt of a ciphertext $c$, participant $P_j$ separates $c$ into
 $c^\prime$ and $c_{mac}$ parts.
 \item Participant $P_j$ tests if $\mathrm{mac}(v, c^\prime) = c_{mac}$. If
 they do not match, he/she raises a Bad\_HMAC exception and goes no further.
@@ -357,8 +366,6 @@ If this operations fails, he/she raises a Message\_Undecryptable
 exception, sets the resync\_required flag \textit{True},
 and passes $c^\prime$ and control to the message-received housekeeping routine described in
 Section \ref{sec:receivehousekeeping}.
-\item Participant $P_j$ computes a new conversation digest
-$\mathrm{conv\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$.
 \item Participant $P_j$ sets $R_q = R \, \oplus \,
 \mathrm{hash}(\mathrm{ECDH}(r_j, R_q))$.
 \item Participant $P_j$ updates $\mathrm{conv\_digest} = \mathrm{hash}(m) \, \oplus \, \mathrm{conv\_digest}$.
@@ -405,7 +412,7 @@ ratchet state may become unsynchronized. Transport layer failures due to lost
 messages or message collisions can cause a participant to be unsynchronized. If
 this is the case, a Message\_Undecryptable exception will be raised
 and control of the decryption will be passed here. The receiving participant
-will then proceed as follows:
+$P_j$ will then proceed as follows:
 \begin{enumerate}
 \item Participant $P_j$ decomposes $m = q \, || \, v^{new} \, || \, R_q^{new}$.
 \item Participant $P_j$ sets $R_q^{init} = R_q^{new}$ and $\{R_i\} =
@@ -431,9 +438,9 @@ Members may drop from the group simply by not updating their ratchet state.
 Further, the group may remove a participant by running the key agreement part of the
 protocol again without the dropped participant.
 
-\subsubsection{\label{sec:im}One-On-One Messaging Within SMMP: $b =
+\subsubsection{\label{sec:im}One-To-One Messaging Within SMMP: $b =
 0\mathrm{x}01$}
-Participants in the group may exchange one-on-one messages with other group
+Participants in the group may exchange one-to-one messages with other group
 participants using the group infrastructure. If participant $P_i$ wishes to
 message participant $P_j$, he/she proceeds as follows:
 \begin{enumerate}
@@ -443,7 +450,7 @@ a copy of his current private ratchet key $r_i$
 ($s_i$) as well as participant $P_j$'s current public ratchet key $R_j$ ($S_j$).
 If this is not the first private message $P_i$ has exchanged with $P_j$,
 $s_i$ and $S_j$ already exist.
-\item Participant $P_i$ generates a new one-on-one ratchet key $(t_i, T_i)$.
+\item Participant $P_i$ generates a new one-to-one ratchet key $(t_i, T_i)$.
 \item Participant $P_i$ forms preliminary ciphertexts $c^\prime =
 e(\mathrm{hash}(\mathrm{ECDH}(s_i, S_j), 0\mathrm{x}01
 \, || \, T_i \, || \, m)$.
@@ -460,7 +467,7 @@ describes procedures to be followed in this case.
 resync\_required = True}
 When the resync\_required flag is set to \textit{True}, the ratchet state is
 unsynchronized, and decrypting further conversation messages is impossible.
-A participant wishing to correct this situation should follow the following
+A participant $P_j$ wishing to correct this situation should follow the following
 procedures (this may be automated):
 \begin{enumerate}
 \item Participant $P_j$ generates a new group private key $v^{new}$.
@@ -469,7 +476,7 @@ procedures (this may be automated):
 \, || \, j \, || \, v^{new} \, || \, R^{new})$.
 \item Participant $P_j$ computes mac $c_{mac} = \mathrm{mac}(v, c^\prime)$.
 \item Participant $P_j$ forms $c = c^\prime \, || \, c_{mac}$.
-\item Participant $P_j$ delays according to a collision-avoidance algorithm
+\item Participant $P_j$ waits according to a collision-avoidance algorithm
 that should be transport-specific and is unspecified here.
 \item Participant $P_j$ tests resync\_required to see if it is still
 \textit{True}. If not, a resynchronization message was received and no further
@@ -532,7 +539,7 @@ is capable of monitoring all network traffic between group participants during
 the group conversation.  The security adversary is not permitted to interact
 with conversation participants in any way prior to the completion of the
 conversation. However, following the conversation, he may ask for static or
-private information of any group participant.
+private information of any (or all) group participant(s).
 The goal of the security adversary is to read
 messages he is not entitled to, and the security adversary wins if he can read
 at least one such message.
@@ -555,7 +562,7 @@ adversary is to get an honest participant to believe that his transcript of the
 conversation is a match to the group conversation when it does not match.
 
 Our protocol contains a conversation digest mechanism that is updated with the
-transmission of each conversation message. This digest the message receiver to
+transmission of each conversation message. This digest allows the message receiver to
 be confident that the message received was identical to the message sent.
 Further, the digest is updated with each message during the conversation until a
 resynchronization event is requested. Assuming that the cryptographic hash
@@ -569,7 +576,7 @@ encrypted with different ephemeral message keys, and therefore uniquely
 identifiable.
 
 \textit{Privacy Adversary} - The privacy adversary may participate in the
-conversation or control others in their participation. The goal of the consensus
+conversation or control others in their participation. The goal of the privacy
 adversary is to convince a judge (either online - a current participant in the
 conversation, or offline - an entity that did not participate in the
 conversation, but has a complete transcript of the conversation available)
@@ -578,8 +585,10 @@ conversation by reading or sending messages to the other participants in the
 conversation.
 
 In our protocol, all participants authenticate to each other via a triple ECDH
-mechanism using their long-term identity key, as well as an ephemeral ratchet
-key. Assuming the computational ECDH problem is hard, each participant is
+mechanism\cite{ref:tripledh}
+using their long-term identity key, as well as an ephemeral ratchet
+key.
+Assuming the computational ECDH problem is hard, each participant is
 confident that all other members of the group have knowledge of their identity
 private keys and ephemeral ratchet keys (here proof of knowledge of the private
 identity key constitutes proof of identity). However, since the result of the
@@ -654,7 +663,7 @@ Reuse and Integration,} pp. 79-84, IEEE Computer Society, 2007.
 2009.
 
 \bibitem{ref:cryptocat} Cryptocat Messaging Blog
-\url{https://github.com/cryptocat/mpotr}, accessed Feb. 22, 2014.
+\url{https://github.com/cryptocat/mpotr}, accessed March, 2014.
 
 \bibitem{ref:liu} H. Liu, E. Y. Vasserman, and N. Hopper, ``Improved Group
 Off-the-Record Messaging," \textit{WPES'13: Proceedings of the ACM Workshop on
@@ -664,7 +673,7 @@ Privacy in the Electronic Society,} ACM, 2013.
 conference key distribution system," \textit{EUROCRYPT'94: Advances in
 Cryptology,} volume 950 of Lecture Notes in Computer Science, 1995.
 
-\bibitem{ref:pidgin} ``Pidgin," \url{https://www.pidgin.im}, accessed Feb. 27,
+\bibitem{ref:pidgin} ``Pidgin," \url{https://www.pidgin.im}, accessed March,
 2014.
 
 \bibitem{ref:blum} M. Blum, P. Feldman, and S. Micali, ``Non-Interactive
@@ -672,13 +681,13 @@ Zero-Knowledge and Its Applications," \textit{ STOC 1988:Proceedings of the
 twentieth annual ACM symposium on Theory of computing}, pp. 103–112, ACM, 2008.
 
 \bibitem{ref:otr} ``Off the Record Messaging",
-\url{https://otr.cypherpunks.ca/}, accessed Feb. 22, 2014.
+\url{https://otr.cypherpunks.ca/}, accessed March, 2014.
 
 \bibitem{ref:otr1} N. Borisov, I. Goldberg, and E. Brewer, ``Off-the-Record
 Communication, or, Why Not To Use PGP," \textit{WPES'04: Proceedings of the
 ACM Workshop on Privacy in the Electronic Society,} ACM, 2004.
 
-\bibitem{ref:raimondo} M. D.Raimondo, R. Gennaro, and H. Krawczyk, ``Secure
+\bibitem{ref:raimondo} M. D. Raimondo, R. Gennaro, and H. Krawczyk, ``Secure
 Off-the-Record Messaging," \textit{WPES'05 Proceedings of the 2005 ACM Workshop
 on Privacy in the Electronic Society,} pp. 81-89, ACM, 2005.
 
@@ -690,19 +699,46 @@ on Privacy in the Electronic Society,} ACM, 2007.
 Off-The-Record Messaging," \textit{SOUPS 2008: Symposium on Usable Privacy and
 Security}, pp. 1-10, SOUPS, 2008.
 
-\bibitem{ref:scimp}  Vinnie Moscaritolo, Gary Belvin, and Phil Zimmermann,
+\bibitem{ref:scimp}  V. Moscaritolo, G. Belvin, and P. Zimmermann,
 ``Silent Circle Instant Messaging Protocol Protocol Specification",
-\url{https://silentcircle.com/static/download/SCIMP%20paper.pdf}, accessed Feb.
-22, 2014.
+\url{https://silentcircle.com/static/download/SCIMP%20paper.pdf}, accessed 
+March, 2014.
 
-\bibitem{ref:axolotl} Trevor Perrin and Moxie Marlinspike, ``Axolotl Ratchet",
-\url{https://github.com/trevp/axolotl/wiki/newversion}, accessed Feb. 22, 2014.
+\bibitem{ref:axolotl} T. Perrin and M. Marlinspike, ``Axolotl Ratchet",
+\url{https://github.com/trevp/axolotl/wiki/newversion}, accessed March, 2014.
+
+\bibitem{ref:justvaudenay} M. Just and S. Vaudenay, ``Authenticated Multi-Party
+Key Agreement," \textit{ASIACRYPT'96 - Advances in Cryptology}, pp. 36-49
+(1996).
+
+\bibitem{ref:tripledh} T. Perrin and M. Marlinspike, ``Simplifying OTR
+Deniability,"
+\url{https://whispersystems.org/blog/simplifying-otr-deniability/}, accessed
+March, 2014.
 
 \bibitem{ref:referenceimplementation} D. R. Andersen, M. S. Andersland, and T.
 J. Andersen, ``Reference implementation of SSMP: A Secure Multi-party Messaging
 Protocol," \url{https://notpublicyet}, 2014.
 
 \end{thebibliography}
+
+\newpage
+\begin{figure}[htb]
+\centerline{\includegraphics[width=6.5in]{bd.eps}}
+\caption{
+Schematic illustration of the authenticated Burmester-Desmedt (BD) group key exchange
+algorithm for a group of three participants, $A, B$, and $C$.
+In the initial round, identity and ephemeral ratchet public keys are exchanged.
+A triple DH key is then computed for each participant, and the BD handshake
+public key mac is computed and attached to the BD handshake key, verifying its
+authenticity.  The handshake public key, together with mac, is then exchanged in
+a second round.
+Using the public handshake keys, each participant computes his intermediate BD
+key. This intermediate key is then exchanged in a third round, and the group
+master key is computed by each user.}
+\label{fig:bd}
+\end{figure}
+
 \end{document}
 %
 % ****** End of file apssamp.tex ******
