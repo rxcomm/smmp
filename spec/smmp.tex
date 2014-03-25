@@ -208,7 +208,7 @@ PD.
 In this paper, we present a secure, peer-to-peer multi-party messaging protocol
 (SMMP) that provides PFS, PFuS, and PD, and has a simple key agreement
 algorithm requiring three exchanges to complete key agreement (including
-authentication between all peers).
+authentication between all peers - see Fig. \ref{fig:exchange}).
 The protocol allows all group members to confirm that they are
 receiving a complete transcript of the group conversation, and provides a
 robust mechanism for resynchronization of the ratchet state if messages are lost
@@ -717,10 +717,17 @@ Deniability,"
 March, 2014.
 
 \bibitem{ref:referenceimplementation} D. R. Andersen, M. S. Andersland, and T.
-J. Andersen, ``Reference implementation of SSMP: A Secure Multi-party Messaging
+J. Andersen, ``Reference implementation of SMMP: A Secure Multi-party Messaging
 Protocol," \url{https://notpublicyet}, 2014.
 
 \end{thebibliography}
+
+\newpage
+\begin{figure}[htb]
+\centerline{\includegraphics[width=6.5in]{key.eps}}
+\caption{Triple Diffie-Hellman authenticated key exchange.}
+\label{fig:exchange}
+\end{figure}
 
 \newpage
 \begin{figure}[htb]
