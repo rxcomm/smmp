@@ -346,7 +346,7 @@ ciphertexts $c_{i}^\prime = e(\mathrm{mk}, j
 follows:\\
 $(r_i, R_i) = (r_i^{new}, R_i^{new})$, \\
 $\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v,
-\mathrm{conv\_digest} \, || \, ||_i \, R_i))$, \\
+\mathrm{hash}(\mathrm{conv\_digest} \, || \, ||_i \, R_i)))$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$.
 \item Participant $P_j$ sends $c_i $ to participant $P_i$ for all participants,
 using a collision-avoidance algorithm that should be transport-specific and is
@@ -372,7 +372,7 @@ Section \ref{sec:receivehousekeeping}.
 \item Participant $P_j$ updates his/her ratchet state $\mathcal{\hat{A}}_i$ as
 follows: \\
 $\mathrm{RK} = \mathrm{hash}(\mathrm{RK} \, || \, \mathrm{ECDH}(v,
-\mathrm{conv\_digest} \, || \, ||_i \, R_i))$, \\
+\mathrm{hash}(\mathrm{conv\_digest} \, || \, ||_i \, R_i)))$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$.
 
 \end{enumerate}
@@ -420,8 +420,8 @@ $P_j$ will then proceed as follows:
 \item Participant $P_j$ sets $v = \mathrm{hash}(v \, || \, v^{new})$.
 \item Participant $P_j$ updates his/her ratchet state
 $\mathcal{\hat{A}}_j$ as follows:\\
-$\mathrm{RK} = \mathrm{hash}(v \, || \, \mathrm{ECDH}(v, ||_i
-\, R_i))$, \\
+$\mathrm{RK} = \mathrm{hash}(v \, || \, \mathrm{ECDH}(v, \mathrm{hash}(||_i
+\, R_i)))$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
 $\mathrm{conv\_digest} = 0\mathrm{x}00 * 32$, \\
 $\mathrm{resync\_required} = False$.
@@ -490,8 +490,8 @@ $r_j = r^{new}$, \\
 $r_j^{init} = r^{new}$, \\
 $R_j^{init} = R^{new}$, \\
 $\{R_i\} = \{R_i^{init}\}$, \\
-$\mathrm{RK} = \mathrm{hash}(v \, || \, \mathrm{ECDH}(v, ||_i
-\, R_i))$, \\
+$\mathrm{RK} = \mathrm{hash}(v \, || \, \mathrm{ECDH}(v, \mathrm{hash}(||_i
+\, R_i)))$, \\
 $\mathrm{mk} = \mathrm{KDF}(\mathrm{RK}, 0\mathrm{x}01)$, \\
 $\mathrm{conv\_digest} = 0\mathrm{x}00 * 32$, \\
 $\mathrm{resync\_required} = False$.
