@@ -1,9 +1,9 @@
-SMMP is a secure, multi-party, synchronous communication protocol. The protocol fol-
-lows a peer-to-peer model and provides perfect forward secrecy and perfect future secrecy against a
-computationally-bounded adversary, as well as information-theoretic plausible deniability for par-
-ticipants in a multi-party conversation. The protocol uses a three-round, authenticated Burmester-
-Desmedt group key agreement protocol to generate a shared secret between a group of N partic-
-ipants. Conversation participants authenticate to each other during key agreement via a triple
+SMMP is a secure, multi-party, synchronous communication protocol. The protocol follows
+a peer-to-peer model and provides perfect forward secrecy and perfect future secrecy against a
+computationally-bounded adversary, as well as information-theoretic plausible deniability for
+participants in a multi-party conversation. The protocol uses a three-round, authenticated
+Burmester-Desmedt group key agreement protocol to generate a shared secret between a group of N
+participants. Conversation participants authenticate to each other during key agreement via a triple
 Diffie-Hellman mechanism. Individual message keys are updated after receipt of each message by
 incorporating new key material distributed by the sending participant. No security requirements
 are imposed on the underlying transport layer, and our protocol leaks no metadata beyond that
